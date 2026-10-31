@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Properties;
+import java.util.function.BooleanSupplier;
 
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.logging.log4j.LogManager;
@@ -43,165 +45,132 @@ public class CoopeCargaFiles {
 
     }
 
+    /** One mandatory data file: its property key, a label for the logs and the method that loads it. */
+    private record LoadStep(String property, String label, BooleanSupplier loader) {
+    }
+
+    /**
+     * Loads every data file into the temporary tables and, only if ALL of them loaded
+     * successfully, moves the data to the production tables (MOVEDATA).
+     * On any failure the transaction is rolled back and MOVEDATA is NOT executed, so the
+     * production tables keep the previous data.
+     */
     public void cargaData() {
 
-        String fname = "";
+        if (!connectdb2()) {
+            return;
+        }
 
-        if (connectdb2()) {
+        try {
 
             logger.info("Calling Stored Procedure TRUNCTEMPS");
-            callStoredProc("TRUNCTEMPS()");
-
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.maestro");
-            logger.info("Looking for MaestroClientesSaldos file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("Loading MaestroClientesSaldos to db2");
-                cargaMaestroClientes();
-
-                closeFile();
+            if (!callStoredProc("TRUNCTEMPS()")) {
+                abortCarga("TRUNCTEMPS failed");
+                return;
             }
 
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.movimientos");
-            logger.info("Looking for MovimientoAhorros file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("Loading MovimientoAhorros to db2");
-                cargaMovimientos("AHO");
+            final List<LoadStep> steps = List.of(
+                new LoadStep("coopetxt.maestro", "MaestroClientesSaldos", this::cargaMaestroClientes),
+                new LoadStep("coopetxt.movimientos", "MovimientoAhorros", () -> cargaMovimientos("AHO")),
+                new LoadStep("coopetxt.miscelaneos", "MovimientoMiscelaneos", () -> cargaMovimientos("MIS")),
+                new LoadStep("coopetxt.aportaciones", "MovimientoAportaciones", () -> cargaMovimientos("APO")),
+                new LoadStep("coopetxt.bloqueo", "MovimientoBloqueos", () -> cargaMovimientos("BLQ")),
+                new LoadStep("coopetxt.prestamos", "MaestroPrestamos", this::cargaMaestroPrestamos),
+                new LoadStep("coopetxt.pagos", "PlanPagos", this::cargaPlanPagos),
+                new LoadStep("coopetxt.certificados", "Certificados", this::cargaCertificados),
+                new LoadStep("coopetxt.garantes", "Garantes", this::cargaGarantes),
+                new LoadStep("coopetxt.garantizados", "Garantizados", this::cargaGarantizados),
+                new LoadStep("coopetxt.fondoreposicionauto", "FRA", this::cargaFra),
+                new LoadStep("coopetxt.fondosiniestroauto", "Siniestros", this::cargaSiniestros),
+                new LoadStep("coopetxt.videos", "Videos", this::cargaVideos));
 
-                closeFile();
-            }
-
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.miscelaneos");
-            logger.info("Looking for MovimientoMiscelaneos file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("Loading MovimientoMiscelaneos to db2");
-                cargaMovimientos("MIS");
-
-                closeFile();
-            }
-
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.aportaciones");
-            logger.info("Looking for MovimientoAportaciones file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("Loading MovimientoAportaciones to db2");
-                cargaMovimientos("APO");
-
-                closeFile();
-            }
-
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.bloqueo");
-            logger.info("Looking for MovimientoBloqueos file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("Loading MovimientoBloqueos to db2");
-                cargaMovimientos("BLQ");
-
-                closeFile();
-            }
-
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.prestamos");
-            logger.info("Looking for MaestroPrestamos file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("Loading MaestroPrestamos to db2");
-                cargaMaestroPrestamos();
-
-                closeFile();
-            }
-
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.pagos");
-            logger.info("Looking for PlanPagos file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("LoadingPlanPagos to db2");
-                cargaPlanPagos();
-
-                closeFile();
-            }
-
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.certificados");
-            logger.info("Looking for Certificados file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("Loading Certificados to db2");
-                cargaCertificados();
-
-                closeFile();
-
-            }
-
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.garantes");
-            logger.info("Looking for Garantes file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("Loading Garantes to db2");
-                cargaGarantes();
-
-                closeFile();
-
-            }
-
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.garantizados");
-            logger.info("Looking for Garantizados file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("Loading Garantizados to db2");
-                cargaGarantizados();
-
-                closeFile();
-
-            }
-
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.fondoreposicionauto");
-            logger.info("Looking for FRA file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("Loading FRA to db2");
-                cargaFra();
-
-                closeFile();
-
-            }
-
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.fondosiniestroauto");
-            logger.info("Looking for Siniestros file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("Loading Siniestros to db2");
-                cargaSiniestros();
-
-                closeFile();
-
-            }
-
-
-            fname = prop.getProperty("coopetxt.path") + prop.getProperty("coopetxt.videos");
-            logger.info("Looking for Videos file : " + fname);
-            if (loadFileCoope(fname)) {
-                logger.info("Loading Videos to db2");
-  
-                cargaVideos();
-
-                closeFile();
-
-            }
-
-            String sociosPersonalProp = prop.getProperty("coopetxt.sociospersonal");
-            if (sociosPersonalProp != null && !sociosPersonalProp.trim().isEmpty()) {
-                fname = prop.getProperty("coopetxt.path") + sociosPersonalProp;
-                logger.info("Looking for Socios Personal file : " + fname);
-                if (loadFileCoope(fname)) {
-                    logger.info("Loading Socios Personal to db2");
-                    cargaSociosPersonal();
-                    closeFile();
+            for (LoadStep step : steps) {
+                String fname = prop.getProperty("coopetxt.path") + prop.getProperty(step.property());
+                if (!runLoad(fname, step.label(), step.loader(), true)) {
+                    abortCarga("loading " + step.label() + " failed");
+                    return;
                 }
             }
 
-                logger.info("calling Stored Procedure MOVEDATA");
-                callStoredProc("MOVEDATA()");
-                logger.info("calling Stored Procedure TRUNCTEMPS");
-                callStoredProc("TRUNCTEMPS()");
+            // Optional: the socios-personal file only exists on days with personal-data changes
+            String sociosPersonalProp = prop.getProperty("coopetxt.sociospersonal");
+            if (sociosPersonalProp != null && !sociosPersonalProp.trim().isEmpty()) {
+                String fname = prop.getProperty("coopetxt.path") + sociosPersonalProp;
+                if (!runLoad(fname, "Socios Personal", this::cargaSociosPersonal, false)) {
+                    abortCarga("loading Socios Personal failed");
+                    return;
+                }
+            }
 
-                closedb2Connection();
+            logger.info("calling Stored Procedure MOVEDATA");
+            if (!callStoredProc("MOVEDATA()")) {
+                abortCarga("MOVEDATA failed");
+                return;
+            }
 
-        } // if connectdb2
+            logger.info("calling Stored Procedure TRUNCTEMPS");
+            callStoredProc("TRUNCTEMPS()");
+
+        } finally {
+            closedb2Connection();
+        }
 
     }
 
-    private void cargaMaestroClientes() {
+    /**
+     * Opens the file and runs the loader.
+     *
+     * @param required if true a missing file is a failure; if false it is skipped
+     * @return false when the load must be considered failed
+     */
+    private boolean runLoad(String fname, String label, BooleanSupplier loader, boolean required) {
+
+        logger.info("Looking for " + label + " file : " + fname);
+
+        if (!loadFileCoope(fname)) {
+            if (required) {
+                logger.error("Required file not found : " + fname);
+                return false;
+            }
+            logger.warn("Optional file not found, skipped : " + fname);
+            return true;
+        }
+
+        try {
+            logger.info("Loading " + label + " to db2");
+            return loader.getAsBoolean();
+        } catch (RuntimeException e) {
+            logger.error("Unexpected error while loading " + label + " (invalid record format?)", e);
+            return false;
+        } finally {
+            closeFile();
+        }
+
+    }
+
+    private void abortCarga(String reason) {
+
+        logger.error("CARGA ABORTED (" + reason + "). MOVEDATA was NOT executed; production tables are unchanged.");
+        rollbackQuietly();
+
+    }
+
+    private void rollbackQuietly() {
+
+        try {
+            if (con != null) {
+                con.rollback();
+            }
+        } catch (SQLException e) {
+            logger.error("Rollback failed", e);
+        }
+
+    }
+
+    private boolean cargaMaestroClientes() {
 
         logger.debug("Iniciando variables cargaMaestroClientes");
+        boolean ok = true;
         String filerow = "";
         String sql = "";
         LocalDate tmpld;
@@ -356,6 +325,7 @@ public class CoopeCargaFiles {
             logger.trace("**** Closed JDBC PreparedStatement");
         
         } catch (final IOException e) {
+            ok = false;
             logger.error(e);
 
         } catch (SQLException ex) {
@@ -382,11 +352,14 @@ public class CoopeCargaFiles {
 
         logger.info("Finalizando cargaMaestroClientes"); // + java.time.LocalDateTime.now())
 
+        return ok;
+
     }
 
-    private void cargaMovimientos(String tipomov) {
+    private boolean cargaMovimientos(String tipomov) {
 
         logger.debug("Iniciando variables cargaMovimientos " + tipomov);
+        boolean ok = true;
         String filerow = "";
         String sql = "";
         LocalDate tmpld;
@@ -447,6 +420,7 @@ public class CoopeCargaFiles {
             logger.trace("**** Closed JDBC PreparedStatement");
 
        } catch (final IOException e) {
+            ok = false;
             logger.error(e);
 
         } catch (SQLException ex) {
@@ -473,11 +447,14 @@ public class CoopeCargaFiles {
 
         logger.info("Finalizando cargaMovimientos " + tipomov); // + java.time.LocalDateTime.now())
 
+        return ok;
+
     }
 
-    private void cargaMaestroPrestamos() {
+    private boolean cargaMaestroPrestamos() {
 
         logger.debug("Iniciando variables cargaMaestroPrestamos");
+        boolean ok = true;
         String filerow = "";
         String sql = "";
         LocalDate tmpld;
@@ -542,6 +519,7 @@ public class CoopeCargaFiles {
             logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
+            ok = false;
             logger.error(e);
 
         } catch (SQLException ex) {
@@ -568,11 +546,14 @@ public class CoopeCargaFiles {
 
         logger.info("Finalizando cargaMaestroPrestamos"); // + java.time.LocalDateTime.now())
 
+        return ok;
+
     }
 
-    private void cargaPlanPagos() {
+    private boolean cargaPlanPagos() {
 
         logger.debug("Iniciando variables cargaPlanPagos");
+        boolean ok = true;
         String filerow = "";
         String sql = "";
         LocalDate tmpld;
@@ -625,6 +606,7 @@ public class CoopeCargaFiles {
             logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
+            ok = false;
             logger.error(e);
 
         } catch (SQLException ex) {
@@ -651,11 +633,14 @@ public class CoopeCargaFiles {
 
         logger.info("Finalizando cargaPlanPagos"); // + java.time.LocalDateTime.now())
 
+        return ok;
+
     }
 
-    private void cargaCertificados() {
+    private boolean cargaCertificados() {
 
         logger.debug("Iniciando variables cargaCertificados");
+        boolean ok = true;
         String filerow = "";
         String sql = "";
         LocalDate tmpld;
@@ -717,6 +702,7 @@ public class CoopeCargaFiles {
             logger.trace("**** Closed JDBC PreparedStatement");
            
         } catch (final IOException e) {
+            ok = false;
             logger.error(e);
 
         } catch (SQLException ex) {
@@ -743,11 +729,14 @@ public class CoopeCargaFiles {
 
         logger.info("Finalizando cargaCertificados"); // + java.time.LocalDateTime.now())
 
+        return ok;
+
     }
 
-    private void cargaGarantes() {
+    private boolean cargaGarantes() {
 
         logger.debug("Iniciando variables cargaGarantes");
+        boolean ok = true;
         String filerow = "";
         String sql = "";
         String sqldet = "";
@@ -908,6 +897,7 @@ public class CoopeCargaFiles {
           con.commit();
 
         } catch (final IOException e) {
+            ok = false;
           logger.error(e);
 
         } catch (SQLException ex) {
@@ -935,11 +925,14 @@ public class CoopeCargaFiles {
 
         logger.info("Finalizando cargaGarantes"); // + java.time.LocalDateTime.now());
 
+        return ok;
+
     }
 
-    private void cargaGarantizados() {
+    private boolean cargaGarantizados() {
 
         logger.debug("Iniciando variables cargaGarantizados");
+        boolean ok = true;
         String filerow = "";
         String sql = "";
         LocalDate tmpld;
@@ -995,6 +988,7 @@ public class CoopeCargaFiles {
             logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
+            ok = false;
             logger.error(e);
 
         } catch (SQLException ex) {
@@ -1021,11 +1015,14 @@ public class CoopeCargaFiles {
 
         logger.info("Finalizando cargaGarantizados"); // + java.time.LocalDateTime.now());
 
+        return ok;
+
     }
 
-    private void cargaFra() {
+    private boolean cargaFra() {
 
         logger.debug("Iniciando variables cargaFra");
+        boolean ok = true;
         String filerow = "";
         String sql = "";
         LocalDate tmpld;
@@ -1084,6 +1081,7 @@ public class CoopeCargaFiles {
             logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
+            ok = false;
             logger.error(e);
 
         } catch (SQLException ex) {
@@ -1110,11 +1108,14 @@ public class CoopeCargaFiles {
 
         logger.info("Finalizando cargaFra"); // + java.time.LocalDateTime.now());
 
+        return ok;
+
     }
 
-    private void cargaSiniestros() {
+    private boolean cargaSiniestros() {
 
         logger.debug("Iniciando variables cargaSiniestros");
+        boolean ok = true;
         String filerow = "";
         String sql = "";
         LocalDate tmpld;
@@ -1171,6 +1172,7 @@ public class CoopeCargaFiles {
             logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
+            ok = false;
             logger.error(e);
 
         } catch (SQLException ex) {
@@ -1197,11 +1199,14 @@ public class CoopeCargaFiles {
 
         logger.info("Finalizando cargaSiniestros"); // + java.time.LocalDateTime.now());
 
+        return ok;
+
     }
 
-    private void cargaVideos() {
+    private boolean cargaVideos() {
 
         logger.debug("Iniciando variables cargaVideos");
+        boolean ok = true;
         String filerow = "";
         String sql = "";
 
@@ -1248,6 +1253,7 @@ public class CoopeCargaFiles {
             logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
+            ok = false;
             logger.error(e);
 
         } catch (SQLException ex) {
@@ -1274,32 +1280,23 @@ public class CoopeCargaFiles {
 
         logger.info("Finalizando cargaVideos"); // + java.time.LocalDateTime.now());
 
+        return ok;
+
     }
 
-    private void callStoredProc(String spname) {
+    private boolean callStoredProc(String spname) {
 
-        try {
+        try (Statement statement = con.createStatement()) {
 
-            String sql = "call " + spname + "";
-            Statement statement = con.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
- 
-            statement.execute(sql);
-            statement.close();
-    
+            statement.execute("call " + spname);
+            return true;
+
         } catch (SQLException e) {
-            logger.error("Error in Stored Procedure : " + spname);
-            logger.error(e);
-
-            logger.error("Rolling back data here....");
-            try{
-               if(con!=null)
-                  con.rollback();
-            }catch(SQLException se2){
-               logger.error(se2);
-            }//end try
-
+            logger.error("Error in Stored Procedure : " + spname, e);
+            rollbackQuietly();
+            return false;
         }
-   
+
     }
 
     private boolean loadFileCoope(String filecoope) {
@@ -1467,12 +1464,13 @@ public class CoopeCargaFiles {
             
     }
 
-    private void cargaSociosPersonal() {
+    private boolean cargaSociosPersonal() {
         logger.debug("Iniciando variables cargaSociosPersonal");
         String filerow = "";
         
         java.time.LocalDateTime start = java.time.LocalDateTime.now();
 
+        boolean spOk = true;
         int recordsReceived = 0;
         int recordsLoaded = 0;
         int recordsUpdated = 0;
@@ -1495,7 +1493,7 @@ public class CoopeCargaFiles {
             }
         } catch (SQLException e) {
             logger.error("Error retrieving existing socios: " + e.getMessage(), e);
-            return;
+            return false;
         }
 
         // List to hold valid parsed records
@@ -1599,7 +1597,7 @@ public class CoopeCargaFiles {
             }
         } catch (IOException e) {
             logger.error("IOException reading file: " + e.getMessage(), e);
-            return;
+            return false;
         }
 
         // 3. Batch insert valid records into temporary DB2 table
@@ -1660,16 +1658,15 @@ public class CoopeCargaFiles {
                 } catch (SQLException rollbackEx) {
                     logger.error("Rollback failed: " + rollbackEx.getMessage(), rollbackEx);
                 }
-                return;
+                return false;
             }
 
             // 4. Call stored procedure UPDATESOCIOSPERSONAL
-            try {
-                logger.info("calling Stored Procedure UPDATESOCIOSPERSONAL");
-                callStoredProc("UPDATESOCIOSPERSONAL()");
+            logger.info("calling Stored Procedure UPDATESOCIOSPERSONAL");
+            if (callStoredProc("UPDATESOCIOSPERSONAL()")) {
                 recordsUpdated = recordsLoaded;
-            } catch (Exception e) {
-                logger.error("Error executing UPDATESOCIOSPERSONAL SP: " + e.getMessage(), e);
+            } else {
+                spOk = false;
             }
         }
 
@@ -1692,6 +1689,7 @@ public class CoopeCargaFiles {
         logger.info("New socios added: " + newSocios);
         logger.info("Format errors: " + formatErrors);
         logger.info("===============================================");
+        return spOk;
     }
 
     /**
