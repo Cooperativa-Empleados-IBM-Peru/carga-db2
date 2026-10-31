@@ -52,8 +52,18 @@ public class CoopeCargaFiles {
     /**
      * Loads every data file into the temporary tables and, only if ALL of them loaded
      * successfully, moves the data to the production tables (MOVEDATA).
-     * On any failure the transaction is rolled back and MOVEDATA is NOT executed, so the
-     * production tables keep the previous data.
+     * On any failure MOVEDATA is NOT executed, so the production tables keep the previous data.
+     *
+     * <p>Transaction handling: {@link #cargaData()} and {@link #runLoad} are the ONLY places that
+     * commit or roll back (the loaders just execute SQL). Commit points:
+     * <ol>
+     *   <li>after the initial TRUNCTEMPS;</li>
+     *   <li>after EACH file is loaded into its ...TEMP table(s) (see {@link #runLoad});
+     *       if a load fails, only the rows of that file are rolled back;</li>
+     *   <li>after MOVEDATA (production rebuild).</li>
+     * </ol>
+     * Rows already committed in the temporary tables when a run is aborted are harmless: the
+     * next run empties them first (TRUNCTEMPS).
      */
     public void cargaData() {
 
@@ -64,7 +74,7 @@ public class CoopeCargaFiles {
         try {
 
             logger.info("Calling Stored Procedure TRUNCTEMPS");
-            if (!callStoredProc("TRUNCTEMPS()")) {
+            if (!callStoredProc("TRUNCTEMPS()") || !commit()) {
                 abortCarga("TRUNCTEMPS failed");
                 return;
             }
@@ -103,22 +113,34 @@ public class CoopeCargaFiles {
             }
 
             logger.info("calling Stored Procedure MOVEDATA");
-            if (!callStoredProc("MOVEDATA()")) {
+            if (!callStoredProc("MOVEDATA()") || !commit()) {
                 abortCarga("MOVEDATA failed");
                 return;
             }
+            logger.info("Data moved to the production tables and committed");
 
+            // Housekeeping only: the data is already in production, so a failure here is not fatal
             logger.info("calling Stored Procedure TRUNCTEMPS");
-            callStoredProc("TRUNCTEMPS()");
+            if (!callStoredProc("TRUNCTEMPS()") || !commit()) {
+                logger.warn("Could not clean the temporary tables (they are emptied at the start of the next run)");
+                rollbackQuietly();
+            }
+
+        } catch (RuntimeException e) {
+            logger.error("Unexpected error during carga", e);
+            abortCarga("unexpected error");
 
         } finally {
+            // A connection with an open transaction cannot be closed cleanly by the DB2 driver
+            rollbackQuietly();
             closedb2Connection();
         }
 
     }
 
     /**
-     * Opens the file and runs the loader.
+     * Opens the file, runs the loader and commits its rows. If the loader fails (or the commit
+     * fails) the rows of this file are rolled back; files already committed are kept.
      *
      * @param required if true a missing file is a failure; if false it is skipped
      * @return false when the load must be considered failed
@@ -138,9 +160,15 @@ public class CoopeCargaFiles {
 
         try {
             logger.info("Loading " + label + " to db2");
-            return loader.getAsBoolean();
+            if (loader.getAsBoolean() && commit()) {
+                logger.info("Committed " + label + " to the temporary table(s)");
+                return true;
+            }
+            rollbackQuietly();
+            return false;
         } catch (RuntimeException e) {
             logger.error("Unexpected error while loading " + label + " (invalid record format?)", e);
+            rollbackQuietly();
             return false;
         } finally {
             closeFile();
@@ -150,8 +178,21 @@ public class CoopeCargaFiles {
 
     private void abortCarga(String reason) {
 
-        logger.error("CARGA ABORTED (" + reason + "). MOVEDATA was NOT executed; production tables are unchanged.");
+        logger.error("CARGA ABORTED (" + reason + "). MOVEDATA was NOT executed; production tables are unchanged"
+                + " (temporary tables are emptied at the start of the next run).");
         rollbackQuietly();
+
+    }
+
+    private boolean commit() {
+
+        try {
+            con.commit();
+            return true;
+        } catch (SQLException e) {
+            logger.error("Commit failed", e);
+            return false;
+        }
 
     }
 
@@ -322,6 +363,9 @@ public class CoopeCargaFiles {
             ps.executeBatch();
             ps.close();
 
+
+            logger.info("Rows added to MAESTROCLIENTESSALDOSTEMP : " + count);
+
             logger.trace("**** Closed JDBC PreparedStatement");
         
         } catch (final IOException e) {
@@ -340,14 +384,6 @@ public class CoopeCargaFiles {
                 ex = ex.getNextException(); // For drivers that support chained exceptions
 
             }
-
-            logger.error("Rolling back data here....");
-            try{
-               if(con!=null)
-                  con.rollback();
-            }catch(SQLException se2){
-               logger.error(se2);
-            }//end try
         }
 
         logger.info("Finalizando cargaMaestroClientes"); // + java.time.LocalDateTime.now())
@@ -417,6 +453,9 @@ public class CoopeCargaFiles {
             ps.executeBatch();
             ps.close();
 
+
+            logger.info("Rows added to MOVIMIENTOSTEMP (" + tipomov + ") : " + count);
+
             logger.trace("**** Closed JDBC PreparedStatement");
 
        } catch (final IOException e) {
@@ -434,14 +473,6 @@ public class CoopeCargaFiles {
                 ex = ex.getNextException(); // For drivers that support chained exceptions
 
             }
-
-            logger.error("Rolling back data here....");
-            try{
-               if(con!=null)
-                  con.rollback();
-            }catch(SQLException se2){
-               logger.error(se2);
-            }//end try
 
         }
 
@@ -516,6 +547,9 @@ public class CoopeCargaFiles {
             ps.executeBatch();
             ps.close();
 
+
+            logger.info("Rows added to MAESTROPRESTAMOSTEMP : " + count);
+
             logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
@@ -533,14 +567,6 @@ public class CoopeCargaFiles {
                 ex = ex.getNextException(); // For drivers that support chained exceptions
 
             }
-
-            logger.error("Rolling back data here....");
-            try{
-               if(con!=null)
-                  con.rollback();
-            }catch(SQLException se2){
-               logger.error(se2);
-            }//end try
 
         }
 
@@ -603,6 +629,9 @@ public class CoopeCargaFiles {
             ps.executeBatch();
             ps.close();
 
+
+            logger.info("Rows added to PLANPAGOSTEMP : " + count);
+
             logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
@@ -620,14 +649,6 @@ public class CoopeCargaFiles {
                 ex = ex.getNextException(); // For drivers that support chained exceptions
 
             }
-
-            logger.error("Rolling back data here....");
-            try{
-               if(con!=null)
-                  con.rollback();
-            }catch(SQLException se2){
-               logger.error(se2);
-            }//end try
 
         }
 
@@ -699,6 +720,9 @@ public class CoopeCargaFiles {
             ps.executeBatch();
             ps.close();
 
+
+            logger.info("Rows added to CERTIFICADOSTEMP : " + count);
+
             logger.trace("**** Closed JDBC PreparedStatement");
            
         } catch (final IOException e) {
@@ -716,14 +740,6 @@ public class CoopeCargaFiles {
                 ex = ex.getNextException(); // For drivers that support chained exceptions
 
             }
-
-            logger.error("Rolling back data here....");
-            try{
-               if(con!=null)
-                  con.rollback();
-            }catch(SQLException se2){
-               logger.error(se2);
-            }//end try
 
         }
 
@@ -889,12 +905,16 @@ public class CoopeCargaFiles {
            ps.executeBatch();
            ps.close();
 
+
+           logger.info("Rows added to GARANTESTEMP : " + count);
+
            psdet.executeBatch();
            psdet.close();
 
-           logger.trace("**** Closed JDBC PreparedStatement");
 
-          con.commit();
+           logger.info("Rows added to GARANTESDETALLETEMP : " + countdet);
+
+           logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
             ok = false;
@@ -911,14 +931,6 @@ public class CoopeCargaFiles {
               ex = ex.getNextException(); // For drivers that support chained exceptions
 
           }
-
-          logger.error("Rolling back data here....");
-          try{
-             if(con!=null)
-                con.rollback();
-          }catch(SQLException se2){
-             logger.error(se2);
-          }//end try
 
         }
 
@@ -985,6 +997,9 @@ public class CoopeCargaFiles {
             ps.executeBatch();
             ps.close();
 
+
+            logger.info("Rows added to GARANTIZADOSTEMP : " + count);
+
             logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
@@ -1002,14 +1017,6 @@ public class CoopeCargaFiles {
               ex = ex.getNextException(); // For drivers that support chained exceptions
 
           }
-
-          logger.error("Rolling back data here....");
-          try{
-             if(con!=null)
-                con.rollback();
-          }catch(SQLException se2){
-             logger.error(se2);
-          }//end try
 
       }
 
@@ -1077,6 +1084,9 @@ public class CoopeCargaFiles {
 
             ps.executeBatch();
             ps.close();
+
+
+            logger.info("Rows added to FRATEMP : " + count);
             
             logger.trace("**** Closed JDBC PreparedStatement");
 
@@ -1095,14 +1105,6 @@ public class CoopeCargaFiles {
                 ex = ex.getNextException(); // For drivers that support chained exceptions
 
             }
-
-            logger.error("Rolling back data here....");
-            try{
-               if(con!=null)
-                  con.rollback();
-            }catch(SQLException se2){
-               logger.error(se2);
-            }//end try
 
         }
 
@@ -1169,6 +1171,9 @@ public class CoopeCargaFiles {
             ps.executeBatch();
             ps.close();
 
+
+            logger.info("Rows added to SINIESTROSTEMP : " + count);
+
             logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
@@ -1186,14 +1191,6 @@ public class CoopeCargaFiles {
                 ex = ex.getNextException(); // For drivers that support chained exceptions
 
             }
-
-            logger.error("Rolling back data here....");
-            try{
-               if(con!=null)
-                  con.rollback();
-            }catch(SQLException se2){
-               logger.error(se2);
-            }//end try
 
         }
 
@@ -1250,6 +1247,9 @@ public class CoopeCargaFiles {
             ps.executeBatch();
             ps.close();
 
+
+            logger.info("Rows added to VIDEOSTEMP : " + count);
+
             logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
@@ -1268,14 +1268,6 @@ public class CoopeCargaFiles {
 
             }
 
-            logger.error("Rolling back data here....");
-            try{
-               if(con!=null)
-                  con.rollback();
-            }catch(SQLException se2){
-               logger.error(se2);
-            }//end try
-
         }
 
         logger.info("Finalizando cargaVideos"); // + java.time.LocalDateTime.now());
@@ -1293,7 +1285,6 @@ public class CoopeCargaFiles {
 
         } catch (SQLException e) {
             logger.error("Error in Stored Procedure : " + spname, e);
-            rollbackQuietly();
             return false;
         }
 
@@ -1640,11 +1631,11 @@ public class CoopeCargaFiles {
                 }
                 ps.executeBatch();
                 recordsLoaded = validRecords.size();
+                logger.info("Rows added to COOPESOCIOSTEMPPERSONAL : " + recordsLoaded);
 
-                // Create the new socios in COOPESOCIOS (same transaction as the temp load)
+                // Create the new socios in COOPESOCIOS. Not committed here: it is part of the
+                // single transaction owned by cargaData(), so it is undone if MOVEDATA fails.
                 newSocios = insertNewSocios(newSocioRecords);
-
-                con.commit();
             } catch (SQLException e) {
                 newSocios = 0;
                 logger.error("SQLException loading temp table: " + e.getMessage(), e);
@@ -1652,11 +1643,6 @@ public class CoopeCargaFiles {
                 while (next != null) {
                     logger.error("Chained SQLException: SQLSTATE=" + next.getSQLState() + " code=" + next.getErrorCode() + " msg=" + next.getMessage());
                     next = next.getNextException();
-                }
-                try {
-                    con.rollback();
-                } catch (SQLException rollbackEx) {
-                    logger.error("Rollback failed: " + rollbackEx.getMessage(), rollbackEx);
                 }
                 return false;
             }
