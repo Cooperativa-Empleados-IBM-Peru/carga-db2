@@ -3,7 +3,7 @@ package ibm.coope;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Properties;
 
@@ -15,35 +15,18 @@ import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.AccessLevel;
-
-@Data
 public class CoopeSftp {
 
-    Logger logger = null;
+    private final Logger logger;
 
     private SshClient sshClient;
     private ClientSession sshSession;
     private SftpClient sftpClient;
 
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private Properties prop;
-
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private String sftphost;
-
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private String sftpuser;
-
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private String sftppwd;
+    private final Properties prop;
+    private final String sftphost;
+    private final String sftpuser;
+    private final String sftppwd;
 
     CoopeSftp(Properties vprop) {
 
@@ -113,14 +96,16 @@ public class CoopeSftp {
      * Logs the remote filename, remote file size, and local destination.
      */
     private void downloadFile(String filename) throws IOException {
-        String remotefname = prop.getProperty("coopesftp.path") + filename;
-        String localfname  = prop.getProperty("coopetxt.path")  + filename;
+        String sftpBasePath = prop.getProperty("coopesftp.path", "");
+        String remotefname = sftpBasePath.endsWith("/") ? sftpBasePath + filename : sftpBasePath + "/" + filename;
+        String localBasePath = prop.getProperty("coopetxt.path", "");
+        String localfname  = Path.of(localBasePath, filename).toString();
 
         SftpClient.Attributes attr = sftpClient.stat(remotefname);
         logger.info(remotefname + " (" + attr.getSize() + ") -> " + localfname);
 
         try (InputStream in = sftpClient.read(remotefname)) {
-            Files.copy(in, Paths.get(localfname), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(in, Path.of(localfname), StandardCopyOption.REPLACE_EXISTING);
         }
     }
 

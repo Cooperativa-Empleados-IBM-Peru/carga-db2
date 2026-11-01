@@ -7,8 +7,6 @@ import lombok.Data;
 @Data
 public class CoopeFRA {
 
-	String tmp;
-
 	private String TipoDoc;
 	private String CodEmpleado;
 	private String NomSocio;
@@ -28,6 +26,8 @@ public class CoopeFRA {
 	
 	CoopeFRA(String arg1) {
 		
+		String tmp;
+
 		this.TipoDoc  = arg1.substring(0, 1).trim();
 		this.CodEmpleado = arg1.substring(1, 12).trim();
 		this.NomSocio = arg1.substring(12, 52).trim();

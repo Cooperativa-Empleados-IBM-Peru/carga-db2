@@ -10,15 +10,15 @@ mvn clean package assembly:single
 ```
 
 This generates, in `target/`:
-- `coopeibm-cargadatadb2-1.7.0-jar-with-dependencies.jar` : runnable jar (includes all dependencies)
-- `coopeibm-cargadatadb2-1.7.0.jar` : jar with only the project classes (needs the jars in `target/dependency`)
+- `coopeibm-cargadatadb2-1.8.0-jar-with-dependencies.jar` : runnable jar (includes all dependencies)
+- `coopeibm-cargadatadb2-1.8.0.jar` : jar with only the project classes (needs the jars in `target/dependency`)
 
 ## Run
 The program reads its configuration from `./resources` (relative to the current directory), so run it from a folder
 that contains the `resources/` folder (`coopeibm.properties`, `log4j2.properties`):
 
 ```bash
-java -jar target/coopeibm-cargadatadb2-1.7.0-jar-with-dependencies.jar <parameter>
+java -jar target/coopeibm-cargadatadb2-1.8.0-jar-with-dependencies.jar <parameter>
 ```
 
 ## Parameters

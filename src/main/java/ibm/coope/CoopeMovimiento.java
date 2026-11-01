@@ -10,11 +10,10 @@ import lombok.Data;
 @Data
 public class CoopeMovimiento  {
 	
-	private String TipoMovimiento;
 	private String CtaCliente;
 
 	private String IdMov;
-	private String CodEmpr;	
+	private String CodEmpr;
 	private String TipoPago;
 	private String Transac;
 	private String Referencia;
@@ -24,8 +23,6 @@ public class CoopeMovimiento  {
 	private LocalDate FecVencimiento;
 	private Double Importe;
 	private String Texto;
-	
-	int i;
 
 	CoopeMovimiento(String arg1) {
 
