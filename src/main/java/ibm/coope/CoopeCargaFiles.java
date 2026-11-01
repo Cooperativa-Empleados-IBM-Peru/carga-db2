@@ -1,9 +1,12 @@
 package ibm.coope;
 
-import java.io.BufferedReader;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.LineNumberReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,7 +30,7 @@ public class CoopeCargaFiles {
    
     private Connection con;
  
-    BufferedReader fileReader;
+    LineNumberReader fileReader;
 
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
@@ -167,7 +170,10 @@ public class CoopeCargaFiles {
             rollbackQuietly();
             return false;
         } catch (RuntimeException e) {
-            logger.error("Unexpected error while loading " + label + " (invalid record format?)", e);
+            // The record itself is not logged: it contains personal data
+            logger.error("Invalid record at line " + fileReader.getLineNumber() + " of " + fname + " while loading "
+                    + label + " (" + e.getClass().getSimpleName() + ": " + e.getMessage() + "). "
+                    + "Check that the file layout matches the expected fixed-width format", e);
             rollbackQuietly();
             return false;
         } finally {
@@ -240,7 +246,7 @@ public class CoopeCargaFiles {
             PreparedStatement ps = con.prepareStatement(sql);
             int count = 0;
  
-            while ((filerow = fileReader.readLine()) != null) {
+            while ((filerow = readRecord()) != null) {
 
                 logger.trace(filerow);
 
@@ -413,7 +419,7 @@ public class CoopeCargaFiles {
             PreparedStatement ps = con.prepareStatement(sql);
             int count = 0;
  
-            while ((filerow = fileReader.readLine()) != null) {
+            while ((filerow = readRecord()) != null) {
 
                 logger.trace(filerow);
 
@@ -502,7 +508,7 @@ public class CoopeCargaFiles {
             PreparedStatement ps = con.prepareStatement(sql);
             int count = 0;
  
-            while ((filerow = fileReader.readLine()) != null) {
+            while ((filerow = readRecord()) != null) {
 
                 logger.trace(filerow);
 
@@ -594,7 +600,7 @@ public class CoopeCargaFiles {
             PreparedStatement ps = con.prepareStatement(sql);
             int count = 0;
 
-            while ((filerow = fileReader.readLine()) != null) {
+            while ((filerow = readRecord()) != null) {
 
                 logger.trace(filerow);
 
@@ -679,7 +685,7 @@ public class CoopeCargaFiles {
             PreparedStatement ps = con.prepareStatement(sql);
             int count = 0;
 
-            while ((filerow = fileReader.readLine()) != null) {
+            while ((filerow = readRecord()) != null) {
 
                 logger.trace(filerow);
 
@@ -777,7 +783,7 @@ public class CoopeCargaFiles {
             PreparedStatement psdet = con.prepareStatement(sqldet);
             int countdet = 0;
  
-            while ((filerow = fileReader.readLine()) != null) {
+            while ((filerow = readRecord()) != null) {
 
                 logger.trace(filerow);
 
@@ -961,7 +967,7 @@ public class CoopeCargaFiles {
             PreparedStatement ps = con.prepareStatement(sql);
             int count = 0;
 
-            while ((filerow = fileReader.readLine()) != null) {
+            while ((filerow = readRecord()) != null) {
 
                 logger.trace(filerow);
 
@@ -1046,7 +1052,7 @@ public class CoopeCargaFiles {
             PreparedStatement ps = con.prepareStatement(sql);
             int count = 0;
 
-            while ((filerow = fileReader.readLine()) != null) {
+            while ((filerow = readRecord()) != null) {
 
                 logger.trace(filerow);
 
@@ -1134,7 +1140,7 @@ public class CoopeCargaFiles {
             PreparedStatement ps = con.prepareStatement(sql);
             int count = 0;
 
-            while ((filerow = fileReader.readLine()) != null) {
+            while ((filerow = readRecord()) != null) {
 
                 logger.trace(filerow);
 
@@ -1217,7 +1223,7 @@ public class CoopeCargaFiles {
             PreparedStatement ps = con.prepareStatement(sql);
             int count = 0;
 
-            while ((filerow = fileReader.readLine()) != null) {
+            while ((filerow = readRecord()) != null) {
 
                 logger.trace(filerow);
 
@@ -1298,17 +1304,39 @@ public class CoopeCargaFiles {
 
         try {
             logger.debug("file : " + filecoope);
-            fileReader = new BufferedReader(
-                    new FileReader(filecoope) );
+            fileReader = new LineNumberReader(
+                    Files.newBufferedReader(Path.of(filecoope), StandardCharsets.ISO_8859_1));
 
-        } catch (final FileNotFoundException e) {
-            logger.error(e);
+        } catch (final NoSuchFileException | FileNotFoundException e) {
+            logger.error("Archivo no encontrado: " + filecoope, e);
+
+            fileloaded = false;
+
+        } catch (final IOException e) {
+            logger.error("Error al abrir archivo: " + filecoope, e);
 
             fileloaded = false;
 
         }
 
         return fileloaded;
+
+    }
+
+    /**
+     * Returns the next non-blank line of the current file, or null at end of file.
+     * Blank lines (for example a trailing empty line) are not records and would make the
+     * fixed-width parsers fail with StringIndexOutOfBoundsException.
+     */
+    private String readRecord() throws IOException {
+
+        String line;
+        while ((line = fileReader.readLine()) != null) {
+            if (!line.isBlank()) {
+                return line;
+            }
+        }
+        return null;
 
     }
 
@@ -1494,7 +1522,7 @@ public class CoopeCargaFiles {
 
         // 2. Parse file line by line
         try {
-            while ((filerow = fileReader.readLine()) != null) {
+            while ((filerow = readRecord()) != null) {
                 recordsReceived++;
                 logger.trace(filerow);
 
@@ -1527,7 +1555,7 @@ public class CoopeCargaFiles {
                 // DB2 VARCHAR/CHAR columns are sized in bytes (UTF-8 database), so measure UTF-8 bytes, not chars
                 boolean lengthError = false;
                 for (int i = 0; i < 21 && i < parts.length; i++) {
-                    if (parts[i].getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_LENGTHS[i]) {
+                    if (parts[i].getBytes(StandardCharsets.UTF_8).length > MAX_LENGTHS[i]) {
                         logger.error("Format error: field " + (i + 1) + " exceeds max length of " + MAX_LENGTHS[i] + " bytes. Value: '" + parts[i] + "'. Line: " + filerow);
                         lengthError = true;
                         break;

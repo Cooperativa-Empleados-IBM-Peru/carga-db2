@@ -1,5 +1,7 @@
 package ibm.coope;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.commons.lang3.time.StopWatch;
@@ -27,9 +29,51 @@ public class CoopeCargaData {
 
         watch = new StopWatch();
         watch.start();
-        prop = CoopeUtils.loadSettings();
-        prop.setProperty("resourcefolder", resourcefolder);
-        prop.setProperty("log4jpropfile", log4jpropfile);
+
+    }
+
+    private static final String[] FILE_KEYS = { "coopetxt.maestro", "coopetxt.movimientos", "coopetxt.miscelaneos",
+            "coopetxt.aportaciones", "coopetxt.bloqueo", "coopetxt.prestamos", "coopetxt.pagos",
+            "coopetxt.certificados", "coopetxt.garantes", "coopetxt.garantizados", "coopetxt.fondoreposicionauto",
+            "coopetxt.fondosiniestroauto", "coopetxt.videos" };
+
+    private static final String[] SFTP_KEYS = { "coopesftp.server", "coopesftp.user", "coopesftp.clave",
+            "coopesftp.path" };
+
+    private static final String[] DB2_KEYS = { "db2.jdbcurl", "db2.username", "db2.password" };
+
+    /**
+     * Loads coopeibm.properties and checks that every property needed by the requested
+     * action is defined (and is not a template placeholder).
+     *
+     * @return false (after logging the reason) when the run must not start
+     */
+    private boolean loadAndValidateSettings(boolean needsSftp, boolean needsDb2) {
+
+        try {
+            prop = CoopeUtils.loadSettings();
+        } catch (IllegalStateException e) {
+            logger.fatal(e.getMessage());
+            return false;
+        }
+
+        List<String> required = new ArrayList<>();
+        required.add("coopetxt.path");
+        required.addAll(List.of(FILE_KEYS));
+        if (needsSftp) {
+            required.addAll(List.of(SFTP_KEYS));
+        }
+        if (needsDb2) {
+            required.addAll(List.of(DB2_KEYS));
+        }
+
+        List<String> missing = CoopeUtils.missingProperties(prop, required.toArray(new String[0]));
+        if (!missing.isEmpty()) {
+            logger.fatal("Missing or incomplete properties in coopeibm.properties : " + missing);
+            return false;
+        }
+
+        return true;
 
     }
 
@@ -44,26 +88,38 @@ public class CoopeCargaData {
             arg = args[0];
         }
 
-        coopecarga.carga(arg);
+        if (!coopecarga.carga(arg)) {
+            System.exit(1);
+        }
 
     }
 
-    private void carga(String arg) {
+    /** @return false when the run could not start because of a configuration error */
+    private boolean carga(String arg) {
 
         logger.info("main argument : " + arg);
 
         switch (arg) {
              case "cargadata" :  
+                    if (!loadAndValidateSettings(false, true)) {
+                        return false;
+                    }
                     CoopeCargaFiles cargadata = new CoopeCargaFiles(prop);
                     cargadata.cargaData();
                     break;
 
             case "getfiles" :   
+                    if (!loadAndValidateSettings(true, false)) {
+                        return false;
+                    }
                     CoopeSftp sftpcoope = new CoopeSftp(prop);
                     sftpcoope.getFiles();
                     break;
 
             case "fullcargadata" :
+                    if (!loadAndValidateSettings(true, true)) {
+                        return false;
+                    }
                     CoopeSftp fullcargadatasftp = new CoopeSftp(prop);
                     fullcargadatasftp.getFiles();
 
@@ -73,6 +129,9 @@ public class CoopeCargaData {
                   break;
 
             case "FULL" :
+                    if (!loadAndValidateSettings(true, true)) {
+                        return false;
+                    }
                     CoopeSftp fullsftp = new CoopeSftp(prop);
                     fullsftp.getFiles();
 
@@ -99,7 +158,9 @@ public class CoopeCargaData {
         watch.stop();
         logger.info("Time Elapsed: " + watch.toString());
         logger.info("---CARGA DE DATOS DE COOPERATIVA IBM PERU TERMINADA---" + System.getProperty("line.separator") );
-        
+
+        return true;
+
     }
 
 }

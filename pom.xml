@@ -6,11 +6,10 @@
 
   <groupId>ibm.coope</groupId>
   <artifactId>coopeibm-cargadatadb2</artifactId>
-  <version>1.7.0</version>
+  <version>1.8.0</version>
 
   <name>Carga datos socios Cooperativa IBM a db2</name>
-  <!-- FIXME change it to the project's website -->
-  <url>https://coopeibm.mybluemix.net/</url>
+  <url>https://coope.14sczmqk1iya.us-south.codeengine.appdomain.cloud/</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
