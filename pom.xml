@@ -6,7 +6,7 @@
 
   <groupId>ibm.coope</groupId>
   <artifactId>coopeibm-cargadatadb2</artifactId>
-  <version>1.8.0</version>
+  <version>1.8.1</version>
 
   <name>Carga datos socios Cooperativa IBM a db2</name>
   <url>https://coope.14sczmqk1iya.us-south.codeengine.appdomain.cloud/</url>
