@@ -11,24 +11,36 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import java.util.Map;
+
 public class CoopeUtils {
 
-	private static String resourcefolder = "./resources";
+	private static final String RESOURCE_FOLDER = "./resources";
+
+	private static final DateTimeFormatter FMT_YYYYMMDD = DateTimeFormatter.ofPattern("yyyyMMdd");
+	private static final DateTimeFormatter FMT_DDMMYYYY_SLASH = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+	private static final DateTimeFormatter FMT_DDMMYYYY = DateTimeFormatter.ofPattern("ddMMyyyy");
+	private static final DateTimeFormatter FMT_YYYYMMDD_HHMMSS = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
+	private static final Map<String, DateTimeFormatter> FORMATTER_CACHE = Map.of(
+		"yyyyMMdd", FMT_YYYYMMDD,
+		"dd/MM/yyyy", FMT_DDMMYYYY_SLASH,
+		"ddMMyyyy", FMT_DDMMYYYY,
+		"yyyyMMddHHmmss", FMT_YYYYMMDD_HHMMSS
+	);
 
 	public static LocalDate convertTolocalDate(String input, String vformat) {
 
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern(vformat);
-		LocalDate ld = LocalDate.parse(input, formatter);
+		DateTimeFormatter formatter = FORMATTER_CACHE.getOrDefault(vformat, DateTimeFormatter.ofPattern(vformat));
+		return LocalDate.parse(input, formatter);
 
-		return ld;
 	}
 
 	public static LocalDateTime convertTolocalDateTime(String input, String vformat) {
 
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern(vformat);
-		LocalDateTime ldt = LocalDateTime.parse(input, formatter);
+		DateTimeFormatter formatter = FORMATTER_CACHE.getOrDefault(vformat, DateTimeFormatter.ofPattern(vformat));
+		return LocalDateTime.parse(input, formatter);
 
-		return ldt;
 	}
 
 	public static String cleanString(String input) {
@@ -45,7 +57,7 @@ public class CoopeUtils {
 
 		Properties prop = new Properties();
 
-		final String configFileprop = resourcefolder + "/coopeibm.properties";
+		final String configFileprop = RESOURCE_FOLDER + "/coopeibm.properties";
 
 		try (InputStream inputStream = new FileInputStream(configFileprop)) {
 			prop.load(inputStream);

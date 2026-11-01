@@ -18,31 +18,19 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.AccessLevel;
-
-@Data
 public class CoopeCargaFiles {
 
-    Logger logger = null;
-   
+    private final Logger logger;
     private Connection con;
- 
-    LineNumberReader fileReader;
-
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private Properties prop;
-
-    final int batchSize = 500;
+    private LineNumberReader fileReader;
+    private final Properties prop;
+    private static final int batchSize = 500;
   
     CoopeCargaFiles(Properties vprop) {
 
         logger = LogManager.getLogger(CoopeCargaFiles.class);
 
-        logger.info("Iniciando carga data Cooperativa"); // java.time.LocalDateTime.now());
+        logger.info("Iniciando carga de datos de Cooperativa");
 
         prop = vprop;
 
@@ -1268,10 +1256,6 @@ public class CoopeCargaFiles {
         final long startMillis = System.currentTimeMillis();
 
         try {
-            // Load the driver
-            Class.forName("com.ibm.db2.jcc.DB2Driver");
-            logger.info("**** Loaded the JDBC driver");
-
             logConnectionSettings(prop.getProperty("db2.jdbcurl"));
             logger.info("**** Connecting to db2 (if the server certificate is not trusted the driver retries"
                     + " silently for a few minutes before failing)...");
@@ -1282,12 +1266,6 @@ public class CoopeCargaFiles {
             // Commit changes manually
             con.setAutoCommit(false);
             logger.info("**** Created a JDBC connection to the data source. Autocommit : " + con.getAutoCommit() );
-
-        } catch (final ClassNotFoundException e) {
-            logger.error("Could not load JDBC driver");
-            logger.error(e);
-
-            db2connected = false;
 
         } catch (SQLException ex) {
             logger.error("Could not connect to db2 after " + (System.currentTimeMillis() - startMillis) / 1000

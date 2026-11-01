@@ -15,35 +15,18 @@ import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.AccessLevel;
-
-@Data
 public class CoopeSftp {
 
-    Logger logger = null;
+    private final Logger logger;
 
     private SshClient sshClient;
     private ClientSession sshSession;
     private SftpClient sftpClient;
 
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private Properties prop;
-
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private String sftphost;
-
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private String sftpuser;
-
-    @Getter(AccessLevel.NONE)
-    @Setter(AccessLevel.NONE)
-    private String sftppwd;
+    private final Properties prop;
+    private final String sftphost;
+    private final String sftpuser;
+    private final String sftppwd;
 
     CoopeSftp(Properties vprop) {
 

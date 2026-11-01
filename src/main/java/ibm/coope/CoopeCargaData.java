@@ -8,23 +8,20 @@ import org.apache.commons.lang3.time.StopWatch;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import lombok.Data;
-
-@Data
 public class CoopeCargaData {
     
-    private String resourcefolder = "./resources";
-    private String log4jpropfile = resourcefolder + "/log4j2.properties";
-    private Logger logger = null;
-    private StopWatch watch;
-    Properties prop;
+    private static final String RESOURCE_FOLDER = "./resources";
+    private static final String LOG4J_PROP_FILE = RESOURCE_FOLDER + "/log4j2.properties";
+    private final Logger logger;
+    private final StopWatch watch;
+    private Properties prop;
  
     CoopeCargaData() {
  
-        System.setProperty("log4j.configurationFile", log4jpropfile);
+        System.setProperty("log4j.configurationFile", LOG4J_PROP_FILE);
         logger = LogManager.getLogger(CoopeCargaData.class);
 
-        logger.info("===INICIANDO CARGA DE DATOS COPERATIVA IBM PERU===");
+        logger.info("===INICIANDO CARGA DE DATOS COOPERATIVA IBM PERU===");
         logger.debug("Iniciando contador (watch) de tiempo");
 
         watch = new StopWatch();
@@ -132,9 +129,9 @@ public class CoopeCargaData {
             default: 
                     String ayuda = "Se aceptan los siguientes parámetros :" + System.getProperty("line.separator")
                         + "  cargadata     : Esta opción cargará los files de datos de la cuentas de los socios a la bd" + System.getProperty("line.separator")
-                        + "  fullcargadata : Esta opción treará los files de datos via sftp, y los cargará en la bd" + System.getProperty("line.separator")
+                        + "  fullcargadata : Esta opción traerá los files de datos via sftp, y los cargará en la bd" + System.getProperty("line.separator")
                         + "  getfiles      : Esta opción traerá los files de datos via sftp del server Domino" + System.getProperty("line.separator")
-                        + "  help          : Mestra esta información de ayuda";
+                        + "  help          : Muestra esta información de ayuda";
 
                         System.out.println(ayuda);
                      break;
