@@ -3,7 +3,7 @@ package ibm.coope;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Properties;
 
@@ -113,14 +113,16 @@ public class CoopeSftp {
      * Logs the remote filename, remote file size, and local destination.
      */
     private void downloadFile(String filename) throws IOException {
-        String remotefname = prop.getProperty("coopesftp.path") + filename;
-        String localfname  = prop.getProperty("coopetxt.path")  + filename;
+        String sftpBasePath = prop.getProperty("coopesftp.path", "");
+        String remotefname = sftpBasePath.endsWith("/") ? sftpBasePath + filename : sftpBasePath + "/" + filename;
+        String localBasePath = prop.getProperty("coopetxt.path", "");
+        String localfname  = Path.of(localBasePath, filename).toString();
 
         SftpClient.Attributes attr = sftpClient.stat(remotefname);
         logger.info(remotefname + " (" + attr.getSize() + ") -> " + localfname);
 
         try (InputStream in = sftpClient.read(remotefname)) {
-            Files.copy(in, Paths.get(localfname), StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(in, Path.of(localfname), StandardCopyOption.REPLACE_EXISTING);
         }
     }
 

@@ -98,7 +98,7 @@ public class CoopeCargaFiles {
                 new LoadStep("coopetxt.videos", "Videos", this::cargaVideos));
 
             for (LoadStep step : steps) {
-                String fname = prop.getProperty("coopetxt.path") + prop.getProperty(step.property());
+                String fname = Path.of(prop.getProperty("coopetxt.path"), prop.getProperty(step.property())).toString();
                 if (!runLoad(fname, step.label(), step.loader(), true)) {
                     abortCarga("loading " + step.label() + " failed");
                     return;
@@ -108,7 +108,7 @@ public class CoopeCargaFiles {
             // Optional: the socios-personal file only exists on days with personal-data changes
             String sociosPersonalProp = prop.getProperty("coopetxt.sociospersonal");
             if (sociosPersonalProp != null && !sociosPersonalProp.trim().isEmpty()) {
-                String fname = prop.getProperty("coopetxt.path") + sociosPersonalProp;
+                String fname = Path.of(prop.getProperty("coopetxt.path"), sociosPersonalProp.trim()).toString();
                 if (!runLoad(fname, "Socios Personal", this::cargaSociosPersonal, false)) {
                     abortCarga("loading Socios Personal failed");
                     return;
@@ -171,7 +171,8 @@ public class CoopeCargaFiles {
             return false;
         } catch (RuntimeException e) {
             // The record itself is not logged: it contains personal data
-            logger.error("Invalid record at line " + fileReader.getLineNumber() + " of " + fname + " while loading "
+            int lineNum = (fileReader != null) ? fileReader.getLineNumber() : -1;
+            logger.error("Invalid record at line " + lineNum + " of " + fname + " while loading "
                     + label + " (" + e.getClass().getSimpleName() + ": " + e.getMessage() + "). "
                     + "Check that the file layout matches the expected fixed-width format", e);
             rollbackQuietly();
@@ -243,136 +244,135 @@ public class CoopeCargaFiles {
             " ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
             " ?)";
             
-            PreparedStatement ps = con.prepareStatement(sql);
-            int count = 0;
- 
-            while ((filerow = readRecord()) != null) {
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                int count = 0;
 
-                logger.trace(filerow);
+                while ((filerow = readRecord()) != null) {
 
-                CoopePrusal maestro = new CoopePrusal(filerow);
+                    logger.trace(filerow);
 
-                ps.setString(1, maestro.getTipoID());
-                ps.setString(2, maestro.getCodEmpleado());
-                ps.setString(3, maestro.getNomSocio());
-                ps.setString(4, maestro.getDirSocio());
-                ps.setString(5, maestro.getCodEmpresa());
-                ps.setString(6, maestro.getCtaCliente());
-                ps.setString(7, maestro.getTipoMonedaPago());
-                ps.setDouble(8, maestro.getIntAhoMes());
-                ps.setDouble(9, maestro.getIntMisMes());
-                ps.setDouble(10, maestro.getSalDisAho());
-                ps.setDouble(11, maestro.getSalBloAho());
-                ps.setDouble(12, maestro.getSalAporta());
-                ps.setDouble(13, maestro.getSalMiscel());
-                ps.setDouble(14, maestro.getSalCert1());
-                ps.setDouble(15, maestro.getSalCert2());
-                ps.setDouble(16, maestro.getSalPSFirma());
-                ps.setDouble(17, maestro.getSalPCPlazo());
-                ps.setDouble(18, maestro.getSalPMPlazo());
-                ps.setDouble(19, maestro.getSalPLPlazo());
-                ps.setDouble(20, maestro.getSalPHipot());
-                ps.setDouble(21, maestro.getSalPConsum());
-                ps.setDouble(22, maestro.getSalPAuto());
-                ps.setDouble(23, maestro.getSalPPS1());
-                ps.setDouble(24, maestro.getSalPEsp1());
-                ps.setDouble(25, maestro.getSalPEsp2());
+                    CoopePrusal maestro = new CoopePrusal(filerow);
 
-                ps.setNull(26, Types.DATE);
-                tmpld = maestro.getFecMovDisAho();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(26, java.sql.Date.valueOf(tmpld));
+                    ps.setString(1, maestro.getTipoID());
+                    ps.setString(2, maestro.getCodEmpleado());
+                    ps.setString(3, maestro.getNomSocio());
+                    ps.setString(4, maestro.getDirSocio());
+                    ps.setString(5, maestro.getCodEmpresa());
+                    ps.setString(6, maestro.getCtaCliente());
+                    ps.setString(7, maestro.getTipoMonedaPago());
+                    ps.setDouble(8, maestro.getIntAhoMes());
+                    ps.setDouble(9, maestro.getIntMisMes());
+                    ps.setDouble(10, maestro.getSalDisAho());
+                    ps.setDouble(11, maestro.getSalBloAho());
+                    ps.setDouble(12, maestro.getSalAporta());
+                    ps.setDouble(13, maestro.getSalMiscel());
+                    ps.setDouble(14, maestro.getSalCert1());
+                    ps.setDouble(15, maestro.getSalCert2());
+                    ps.setDouble(16, maestro.getSalPSFirma());
+                    ps.setDouble(17, maestro.getSalPCPlazo());
+                    ps.setDouble(18, maestro.getSalPMPlazo());
+                    ps.setDouble(19, maestro.getSalPLPlazo());
+                    ps.setDouble(20, maestro.getSalPHipot());
+                    ps.setDouble(21, maestro.getSalPConsum());
+                    ps.setDouble(22, maestro.getSalPAuto());
+                    ps.setDouble(23, maestro.getSalPPS1());
+                    ps.setDouble(24, maestro.getSalPEsp1());
+                    ps.setDouble(25, maestro.getSalPEsp2());
 
-                ps.setNull(27, Types.DATE);
-                tmpld = maestro.getFecMovBloAho();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(27, java.sql.Date.valueOf(tmpld));
-    
-                ps.setNull(28, Types.DATE);
-                tmpld = maestro.getFecMovAporta();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(28, java.sql.Date.valueOf(tmpld));
- 
-                ps.setNull(29, Types.DATE);
-                tmpld = maestro.getFecMovMiscel();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(29, java.sql.Date.valueOf(tmpld));
-    
-                ps.setNull(30, Types.DATE);
-                tmpld = maestro.getFecMovCert1();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(30, java.sql.Date.valueOf(tmpld));
-    
-                ps.setNull(31, Types.DATE);
-                tmpld = maestro.getFecMovCert2();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(31, java.sql.Date.valueOf(tmpld));
-    
-                ps.setNull(32, Types.DATE);
-                tmpld = maestro.getFecMovPSFirma();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(32, java.sql.Date.valueOf(tmpld));
-          
-                ps.setNull(33, Types.DATE);
-                tmpld = maestro.getFecMovPCPlazo();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(33, java.sql.Date.valueOf(tmpld));
-    
-                ps.setNull(34, Types.DATE);
-                tmpld = maestro.getFecMovPMPlazo();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(34, java.sql.Date.valueOf(tmpld));
-    
-                ps.setNull(35, Types.DATE);
-                tmpld = maestro.getFecMovPLPlazo();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(35, java.sql.Date.valueOf(tmpld));
-                       
-                ps.setNull(36, Types.DATE);
-                tmpld = maestro.getFecMovPHipot();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(36, java.sql.Date.valueOf(tmpld));
-    
-                ps.setNull(37, Types.DATE);
-                tmpld = maestro.getFecMovPConsum();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(37, java.sql.Date.valueOf(tmpld));
-    
-                ps.setNull(38, Types.DATE);
-                tmpld = maestro.getFecMovPAuto();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(38, java.sql.Date.valueOf(tmpld));
-    
-                ps.setNull(39, Types.DATE);
-                tmpld = maestro.getFecMovPPS1();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(39, java.sql.Date.valueOf(tmpld));
-    
-                ps.setNull(40, Types.DATE);
-                tmpld = maestro.getFecMovPEsp1();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(40, java.sql.Date.valueOf(tmpld));
-    
-                ps.setNull(41, Types.DATE);
-                tmpld = maestro.getFecMovPEsp2();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(41, java.sql.Date.valueOf(tmpld));
-    
-                ps.addBatch();
+                    ps.setNull(26, Types.DATE);
+                    tmpld = maestro.getFecMovDisAho();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(26, java.sql.Date.valueOf(tmpld));
 
-                if(++count % batchSize == 0) {
-                    ps.executeBatch();
-                }
-   
-            } // while
+                    ps.setNull(27, Types.DATE);
+                    tmpld = maestro.getFecMovBloAho();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(27, java.sql.Date.valueOf(tmpld));
+        
+                    ps.setNull(28, Types.DATE);
+                    tmpld = maestro.getFecMovAporta();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(28, java.sql.Date.valueOf(tmpld));
+     
+                    ps.setNull(29, Types.DATE);
+                    tmpld = maestro.getFecMovMiscel();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(29, java.sql.Date.valueOf(tmpld));
+        
+                    ps.setNull(30, Types.DATE);
+                    tmpld = maestro.getFecMovCert1();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(30, java.sql.Date.valueOf(tmpld));
+        
+                    ps.setNull(31, Types.DATE);
+                    tmpld = maestro.getFecMovCert2();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(31, java.sql.Date.valueOf(tmpld));
+        
+                    ps.setNull(32, Types.DATE);
+                    tmpld = maestro.getFecMovPSFirma();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(32, java.sql.Date.valueOf(tmpld));
+              
+                    ps.setNull(33, Types.DATE);
+                    tmpld = maestro.getFecMovPCPlazo();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(33, java.sql.Date.valueOf(tmpld));
+        
+                    ps.setNull(34, Types.DATE);
+                    tmpld = maestro.getFecMovPMPlazo();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(34, java.sql.Date.valueOf(tmpld));
+        
+                    ps.setNull(35, Types.DATE);
+                    tmpld = maestro.getFecMovPLPlazo();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(35, java.sql.Date.valueOf(tmpld));
+                           
+                    ps.setNull(36, Types.DATE);
+                    tmpld = maestro.getFecMovPHipot();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(36, java.sql.Date.valueOf(tmpld));
+        
+                    ps.setNull(37, Types.DATE);
+                    tmpld = maestro.getFecMovPConsum();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(37, java.sql.Date.valueOf(tmpld));
+        
+                    ps.setNull(38, Types.DATE);
+                    tmpld = maestro.getFecMovPAuto();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(38, java.sql.Date.valueOf(tmpld));
+        
+                    ps.setNull(39, Types.DATE);
+                    tmpld = maestro.getFecMovPPS1();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(39, java.sql.Date.valueOf(tmpld));
+        
+                    ps.setNull(40, Types.DATE);
+                    tmpld = maestro.getFecMovPEsp1();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(40, java.sql.Date.valueOf(tmpld));
+        
+                    ps.setNull(41, Types.DATE);
+                    tmpld = maestro.getFecMovPEsp2();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(41, java.sql.Date.valueOf(tmpld));
+        
+                    ps.addBatch();
 
-            ps.executeBatch();
-            ps.close();
+                    if(++count % batchSize == 0) {
+                        ps.executeBatch();
+                    }
+       
+                } // while
 
+                ps.executeBatch();
 
-            logger.info("Rows added to MAESTROCLIENTESSALDOSTEMP : " + count);
+                logger.info("Rows added to MAESTROCLIENTESSALDOSTEMP : " + count);
 
-            logger.trace("**** Closed JDBC PreparedStatement");
+                logger.trace("**** Closed JDBC PreparedStatement");
+            }
         
         } catch (final IOException e) {
             ok = false;
@@ -416,53 +416,52 @@ public class CoopeCargaFiles {
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
             " ?, ?, ?)";
             
-            PreparedStatement ps = con.prepareStatement(sql);
-            int count = 0;
- 
-            while ((filerow = readRecord()) != null) {
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                int count = 0;
 
-                logger.trace(filerow);
+                while ((filerow = readRecord()) != null) {
 
-                CoopeMovimiento movim = new CoopeMovimiento(filerow);
+                    logger.trace(filerow);
 
-                ps.setString(1, tipomov);
-                ps.setString(2, movim.getCtaCliente());
-                ps.setString(3, movim.getIdMov());
-                ps.setString(4, movim.getCodEmpr());
-                ps.setString(5, movim.getTipoPago());
-                ps.setString(6, movim.getTransac());
-                ps.setString(7, movim.getReferencia());
-                ps.setString(8, movim.getReferAlfa());
-                ps.setString(9, movim.getNumDepo());
-   
-                ps.setNull(10, Types.TIMESTAMP);
-                tmpldt = movim.getFecEmision();
-                if (!ObjectUtils.isEmpty(tmpldt))
-                    ps.setTimestamp(10, java.sql.Timestamp.valueOf(tmpldt));
+                    CoopeMovimiento movim = new CoopeMovimiento(filerow);
 
-                ps.setNull(11, Types.DATE);
-                tmpld = movim.getFecVencimiento();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(11, java.sql.Date.valueOf(tmpld));
+                    ps.setString(1, tipomov);
+                    ps.setString(2, movim.getCtaCliente());
+                    ps.setString(3, movim.getIdMov());
+                    ps.setString(4, movim.getCodEmpr());
+                    ps.setString(5, movim.getTipoPago());
+                    ps.setString(6, movim.getTransac());
+                    ps.setString(7, movim.getReferencia());
+                    ps.setString(8, movim.getReferAlfa());
+                    ps.setString(9, movim.getNumDepo());
+       
+                    ps.setNull(10, Types.TIMESTAMP);
+                    tmpldt = movim.getFecEmision();
+                    if (!ObjectUtils.isEmpty(tmpldt))
+                        ps.setTimestamp(10, java.sql.Timestamp.valueOf(tmpldt));
 
-                ps.setDouble(12, movim.getImporte());
-                ps.setString(13, movim.getTexto());
+                    ps.setNull(11, Types.DATE);
+                    tmpld = movim.getFecVencimiento();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(11, java.sql.Date.valueOf(tmpld));
 
-                ps.addBatch();
+                    ps.setDouble(12, movim.getImporte());
+                    ps.setString(13, movim.getTexto());
 
-                if(++count % batchSize == 0) {
-                    ps.executeBatch();
-                }
-  
-            } // while
+                    ps.addBatch();
 
-            ps.executeBatch();
-            ps.close();
+                    if(++count % batchSize == 0) {
+                        ps.executeBatch();
+                    }
+      
+                } // while
 
+                ps.executeBatch();
 
-            logger.info("Rows added to MOVIMIENTOSTEMP (" + tipomov + ") : " + count);
+                logger.info("Rows added to MOVIMIENTOSTEMP (" + tipomov + ") : " + count);
 
-            logger.trace("**** Closed JDBC PreparedStatement");
+                logger.trace("**** Closed JDBC PreparedStatement");
+            }
 
        } catch (final IOException e) {
             ok = false;
@@ -505,58 +504,57 @@ public class CoopeCargaFiles {
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
             " ?, ?, ?, ?)";
 
-            PreparedStatement ps = con.prepareStatement(sql);
-            int count = 0;
- 
-            while ((filerow = readRecord()) != null) {
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                int count = 0;
 
-                logger.trace(filerow);
+                while ((filerow = readRecord()) != null) {
 
-                CoopeMaepre prestamo = new CoopeMaepre(filerow);
+                    logger.trace(filerow);
 
-                ps.setString(1, prestamo.getTipoId());
-                ps.setString(2, prestamo.getDocId());
-                ps.setString(3, prestamo.getIdMov());
-                ps.setString(4, prestamo.getCodEmpr());
-                ps.setString(5, prestamo.getCtaCliente());
-                ps.setString(6, prestamo.getNumeOperacion());
+                    CoopeMaepre prestamo = new CoopeMaepre(filerow);
 
-                ps.setNull(7, Types.DATE);
-                tmpld = prestamo.getFecCartera();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(7, java.sql.Date.valueOf(tmpld));
+                    ps.setString(1, prestamo.getTipoId());
+                    ps.setString(2, prestamo.getDocId());
+                    ps.setString(3, prestamo.getIdMov());
+                    ps.setString(4, prestamo.getCodEmpr());
+                    ps.setString(5, prestamo.getCtaCliente());
+                    ps.setString(6, prestamo.getNumeOperacion());
 
-                ps.setNull(8, Types.DATE);
-                tmpld = prestamo.getFecRenovacion();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(8, java.sql.Date.valueOf(tmpld));
+                    ps.setNull(7, Types.DATE);
+                    tmpld = prestamo.getFecCartera();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(7, java.sql.Date.valueOf(tmpld));
 
-                ps.setNull(9, Types.DATE);
-                tmpld = prestamo.getFecVencimiento();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(9, java.sql.Date.valueOf(tmpld));
+                    ps.setNull(8, Types.DATE);
+                    tmpld = prestamo.getFecRenovacion();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(8, java.sql.Date.valueOf(tmpld));
 
-                ps.setString(10, prestamo.getTipoPago());
-                ps.setDouble(11, prestamo.getMonto());
-                ps.setDouble(12, prestamo.getSaldo());
-                ps.setDouble(13, prestamo.getInteres());
-                ps.setInt(14, prestamo.getNroCuotas());
+                    ps.setNull(9, Types.DATE);
+                    tmpld = prestamo.getFecVencimiento();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(9, java.sql.Date.valueOf(tmpld));
 
-                ps.addBatch();
+                    ps.setString(10, prestamo.getTipoPago());
+                    ps.setDouble(11, prestamo.getMonto());
+                    ps.setDouble(12, prestamo.getSaldo());
+                    ps.setDouble(13, prestamo.getInteres());
+                    ps.setInt(14, prestamo.getNroCuotas());
 
-                if(++count % batchSize == 0) {
-                    ps.executeBatch();
+                    ps.addBatch();
+
+                    if(++count % batchSize == 0) {
+                        ps.executeBatch();
+                    }
+
                 }
 
+                ps.executeBatch();
+
+                logger.info("Rows added to MAESTROPRESTAMOSTEMP : " + count);
+
+                logger.trace("**** Closed JDBC PreparedStatement");
             }
-
-            ps.executeBatch();
-            ps.close();
-
-
-            logger.info("Rows added to MAESTROPRESTAMOSTEMP : " + count);
-
-            logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
             ok = false;
@@ -597,48 +595,47 @@ public class CoopeCargaFiles {
             " Monto, Interes, InteresMoratorio ) " +
             " VALUES (?, ?, ?, ?, ?, ?, ?, ? )";
  
-            PreparedStatement ps = con.prepareStatement(sql);
-            int count = 0;
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                int count = 0;
 
-            while ((filerow = readRecord()) != null) {
+                while ((filerow = readRecord()) != null) {
 
-                logger.trace(filerow);
+                    logger.trace(filerow);
 
-                CoopePlanpg pago = new CoopePlanpg(filerow);
+                    CoopePlanpg pago = new CoopePlanpg(filerow);
 
-                ps.setString(1, pago.getNumOpera());
-                ps.setString(2, pago.getIdMov());
-                ps.setInt(3, pago.getNroCuota());
+                    ps.setString(1, pago.getNumOpera());
+                    ps.setString(2, pago.getIdMov());
+                    ps.setInt(3, pago.getNroCuota());
 
-                ps.setNull(4, Types.DATE);
-                tmpld = pago.getFecVencimiento();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(4, java.sql.Date.valueOf(tmpld));
+                    ps.setNull(4, Types.DATE);
+                    tmpld = pago.getFecVencimiento();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(4, java.sql.Date.valueOf(tmpld));
 
-                ps.setNull(5, Types.DATE);
-                tmpld = pago.getFecPago();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(5, java.sql.Date.valueOf(tmpld));
+                    ps.setNull(5, Types.DATE);
+                    tmpld = pago.getFecPago();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(5, java.sql.Date.valueOf(tmpld));
 
-                ps.setDouble(6, pago.getMonto());
-                ps.setDouble(7, pago.getInteres());
-                ps.setDouble(8, pago.getInteresMoratorio());
+                    ps.setDouble(6, pago.getMonto());
+                    ps.setDouble(7, pago.getInteres());
+                    ps.setDouble(8, pago.getInteresMoratorio());
 
-                ps.addBatch();
+                    ps.addBatch();
 
-                if(++count % batchSize == 0) {
-                    ps.executeBatch();
-                }
+                    if(++count % batchSize == 0) {
+                        ps.executeBatch();
+                    }
 
-            } // while
+                } // while
 
-            ps.executeBatch();
-            ps.close();
+                ps.executeBatch();
 
+                logger.info("Rows added to PLANPAGOSTEMP : " + count);
 
-            logger.info("Rows added to PLANPAGOSTEMP : " + count);
-
-            logger.trace("**** Closed JDBC PreparedStatement");
+                logger.trace("**** Closed JDBC PreparedStatement");
+            }
 
         } catch (final IOException e) {
             ok = false;
@@ -682,54 +679,53 @@ public class CoopeCargaFiles {
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
             " ?, ?, ?, ?, ?)";
  
-            PreparedStatement ps = con.prepareStatement(sql);
-            int count = 0;
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                int count = 0;
 
-            while ((filerow = readRecord()) != null) {
+                while ((filerow = readRecord()) != null) {
 
-                logger.trace(filerow);
+                    logger.trace(filerow);
 
-                CoopeCertificados certificado = new CoopeCertificados(filerow);
- 
-                ps.setString(1, certificado.getTipoId() );
-                ps.setString(2, certificado.getCodEmpleado() );
-                ps.setString(3, certificado.getCtaCliente() );
-                ps.setString(4, certificado.getDocId() );
-                ps.setString(5, certificado.getTipoCert() );
-                ps.setString(6, certificado.getNumDoc() );
-                ps.setString(7, certificado.getVers() );
-                ps.setInt(8, certificado.getPlazo() );
-                ps.setString(9, certificado.getTipoPago() );
-                ps.setDouble(10, certificado.getMonto() );
-                ps.setDouble(11, certificado.getInteresP() );
-                ps.setDouble(12, certificado.getInteresC() );
-                ps.setDouble(13, certificado.getInteres() );
+                    CoopeCertificados certificado = new CoopeCertificados(filerow);
+     
+                    ps.setString(1, certificado.getTipoId() );
+                    ps.setString(2, certificado.getCodEmpleado() );
+                    ps.setString(3, certificado.getCtaCliente() );
+                    ps.setString(4, certificado.getDocId() );
+                    ps.setString(5, certificado.getTipoCert() );
+                    ps.setString(6, certificado.getNumDoc() );
+                    ps.setString(7, certificado.getVers() );
+                    ps.setInt(8, certificado.getPlazo() );
+                    ps.setString(9, certificado.getTipoPago() );
+                    ps.setDouble(10, certificado.getMonto() );
+                    ps.setDouble(11, certificado.getInteresP() );
+                    ps.setDouble(12, certificado.getInteresC() );
+                    ps.setDouble(13, certificado.getInteres() );
 
-                ps.setNull(14, Types.DATE);
-                tmpld = certificado.getFecEmision();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(14, java.sql.Date.valueOf(tmpld));
+                    ps.setNull(14, Types.DATE);
+                    tmpld = certificado.getFecEmision();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(14, java.sql.Date.valueOf(tmpld));
 
-                ps.setNull(15, Types.DATE);
-                tmpld = certificado.getFecVencimiento();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(15, java.sql.Date.valueOf(tmpld));
+                    ps.setNull(15, Types.DATE);
+                    tmpld = certificado.getFecVencimiento();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(15, java.sql.Date.valueOf(tmpld));
 
-                ps.addBatch();
+                    ps.addBatch();
 
-                if(++count % batchSize == 0) {
-                    ps.executeBatch();
-                }
-    
-            }  // while
+                    if(++count % batchSize == 0) {
+                        ps.executeBatch();
+                    }
+        
+                }  // while
 
-            ps.executeBatch();
-            ps.close();
+                ps.executeBatch();
 
+                logger.info("Rows added to CERTIFICADOSTEMP : " + count);
 
-            logger.info("Rows added to CERTIFICADOSTEMP : " + count);
-
-            logger.trace("**** Closed JDBC PreparedStatement");
+                logger.trace("**** Closed JDBC PreparedStatement");
+            }
            
         } catch (final IOException e) {
             ok = false;
@@ -778,149 +774,144 @@ public class CoopeCargaFiles {
             " IdMovimiento, TipoDoc ) " +
             " VALUES (?, ?, ?, ? )";
     
-            PreparedStatement ps = con.prepareStatement(sql);
-            int count = 0;
-            PreparedStatement psdet = con.prepareStatement(sqldet);
-            int countdet = 0;
- 
-            while ((filerow = readRecord()) != null) {
+            try (PreparedStatement ps = con.prepareStatement(sql);
+                 PreparedStatement psdet = con.prepareStatement(sqldet)) {
+                int count = 0;
+                int countdet = 0;
 
-                logger.trace(filerow);
+                while ((filerow = readRecord()) != null) {
 
-                CoopeGarantes garante = new CoopeGarantes(filerow);
-   
-                ps.setString(1, garante.getCodEmpleado() );
-                ps.setString(2, garante.getNumOperacion() );
-                ps.setString(3, garante.getIdMovim() );
-                ps.setString(4, garante.getTipoDoc() );
-     
-                ps.addBatch();
+                    logger.trace(filerow);
 
-                if(++count % batchSize == 0) {
-                    ps.executeBatch();
-                }
-    
-                //Detalles
-                if (filerow.length() >= 67) {
-                tipodocgarante = filerow.substring(25, 26).trim();
-                docidgarante = filerow.substring(26, 37).trim();
-                nombregarante = filerow.substring(37, 67).trim();
-                if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ) {  
-                    garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
-    
-                    psdet.setString(1, garantedet.getCodEmpleado() );
-                    psdet.setString(2, garantedet.getNumOperacion() );
-                    psdet.setString(3, garantedet.getTipoDocGarante() );
-                    psdet.setString(4, garantedet.getDocIdGarante() );
-                    psdet.setString(5, garantedet.getNomGarante() );
-    
-                    psdet.addBatch();
-
-                    if(++countdet % batchSize == 0) {
-                        psdet.executeBatch();
-                    }
-                }
-                }
-
-                if (filerow.length() >= 109) {
-                tipodocgarante = filerow.substring(67, 68).trim();
-                docidgarante = filerow.substring(68, 79).trim();
-                nombregarante = filerow.substring(79, 109).trim();
-                if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ) {  
-                    garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
-
-                    psdet.setString(1, garantedet.getCodEmpleado() );
-                    psdet.setString(2, garantedet.getNumOperacion() );
-                    psdet.setString(3, garantedet.getTipoDocGarante() );
-                    psdet.setString(4, garantedet.getDocIdGarante() );
-                    psdet.setString(5, garantedet.getNomGarante() );
-    
-                    psdet.addBatch();
-
-                    if(++countdet % batchSize == 0) {
-                        psdet.executeBatch();
-                    }
-                }    
-                }
-
-                if (filerow.length() >= 151) {
-                tipodocgarante = filerow.substring(109, 110).trim();
-                docidgarante = filerow.substring(110, 121).trim();
-                nombregarante = filerow.substring(121, 151).trim();
-                if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ) { 
-                    garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
- 
-                    psdet.setString(1, garantedet.getCodEmpleado() );
-                    psdet.setString(2, garantedet.getNumOperacion() );
-                    psdet.setString(3, garantedet.getTipoDocGarante() );
-                    psdet.setString(4, garantedet.getDocIdGarante() );
-                    psdet.setString(5, garantedet.getNomGarante() );
-    
-                    psdet.addBatch();
-
-                    if(++countdet % batchSize == 0) {
-                        psdet.executeBatch();
-                    }
-                } 
-                }   
-                    
-                if (filerow.length() >=193) {
-                tipodocgarante = filerow.substring(151, 152).trim();
-                docidgarante = filerow.substring(152, 163).trim();
-                nombregarante = filerow.substring(163, 193).trim();
-                if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ){
-                    garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
- 
-                    psdet.setString(1, garantedet.getCodEmpleado() );
-                    psdet.setString(2, garantedet.getNumOperacion() );
-                    psdet.setString(3, garantedet.getTipoDocGarante() );
-                    psdet.setString(4, garantedet.getDocIdGarante() );
-                    psdet.setString(5, garantedet.getNomGarante() );
-    
-                    psdet.addBatch();
-
-                    if(++countdet % batchSize == 0) {
-                        psdet.executeBatch();
-                    }
-                }
-                }    
+                    CoopeGarantes garante = new CoopeGarantes(filerow);
        
-                if (filerow.length() >= 235) {
-                tipodocgarante = filerow.substring(193, 194).trim();
-                docidgarante = filerow.substring(194, 205).trim();
-                nombregarante = filerow.substring(205, 235).trim();
-                if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ) {
-                    garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
- 
-                    psdet.setString(1, garantedet.getCodEmpleado() );
-                    psdet.setString(2, garantedet.getNumOperacion() );
-                    psdet.setString(3, garantedet.getTipoDocGarante() );
-                    psdet.setString(4, garantedet.getDocIdGarante() );
-                    psdet.setString(5, garantedet.getNomGarante() );
-    
-                    psdet.addBatch();
+                    ps.setString(1, garante.getCodEmpleado() );
+                    ps.setString(2, garante.getNumOperacion() );
+                    ps.setString(3, garante.getIdMovim() );
+                    ps.setString(4, garante.getTipoDoc() );
+         
+                    ps.addBatch();
 
-                    if(++countdet % batchSize == 0) {
-                        psdet.executeBatch();
+                    if(++count % batchSize == 0) {
+                        ps.executeBatch();
                     }
+        
+                    //Detalles
+                    if (filerow.length() >= 67) {
+                    tipodocgarante = filerow.substring(25, 26).trim();
+                    docidgarante = filerow.substring(26, 37).trim();
+                    nombregarante = filerow.substring(37, 67).trim();
+                    if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ) {
+                        garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
+        
+                        psdet.setString(1, garantedet.getCodEmpleado() );
+                        psdet.setString(2, garantedet.getNumOperacion() );
+                        psdet.setString(3, garantedet.getTipoDocGarante() );
+                        psdet.setString(4, garantedet.getDocIdGarante() );
+                        psdet.setString(5, garantedet.getNomGarante() );
+        
+                        psdet.addBatch();
+
+                        if(++countdet % batchSize == 0) {
+                            psdet.executeBatch();
+                        }
+                    }
+                    }
+
+                    if (filerow.length() >= 109) {
+                    tipodocgarante = filerow.substring(67, 68).trim();
+                    docidgarante = filerow.substring(68, 79).trim();
+                    nombregarante = filerow.substring(79, 109).trim();
+                    if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ) {
+                        garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
+
+                        psdet.setString(1, garantedet.getCodEmpleado() );
+                        psdet.setString(2, garantedet.getNumOperacion() );
+                        psdet.setString(3, garantedet.getTipoDocGarante() );
+                        psdet.setString(4, garantedet.getDocIdGarante() );
+                        psdet.setString(5, garantedet.getNomGarante() );
+        
+                        psdet.addBatch();
+
+                        if(++countdet % batchSize == 0) {
+                            psdet.executeBatch();
+                        }
+                    }
+                    }
+
+                    if (filerow.length() >= 151) {
+                    tipodocgarante = filerow.substring(109, 110).trim();
+                    docidgarante = filerow.substring(110, 121).trim();
+                    nombregarante = filerow.substring(121, 151).trim();
+                    if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ) {
+                        garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
+     
+                        psdet.setString(1, garantedet.getCodEmpleado() );
+                        psdet.setString(2, garantedet.getNumOperacion() );
+                        psdet.setString(3, garantedet.getTipoDocGarante() );
+                        psdet.setString(4, garantedet.getDocIdGarante() );
+                        psdet.setString(5, garantedet.getNomGarante() );
+        
+                        psdet.addBatch();
+
+                        if(++countdet % batchSize == 0) {
+                            psdet.executeBatch();
+                        }
+                    }
+                    }
+                        
+                    if (filerow.length() >=193) {
+                    tipodocgarante = filerow.substring(151, 152).trim();
+                    docidgarante = filerow.substring(152, 163).trim();
+                    nombregarante = filerow.substring(163, 193).trim();
+                    if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ){
+                        garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
+     
+                        psdet.setString(1, garantedet.getCodEmpleado() );
+                        psdet.setString(2, garantedet.getNumOperacion() );
+                        psdet.setString(3, garantedet.getTipoDocGarante() );
+                        psdet.setString(4, garantedet.getDocIdGarante() );
+                        psdet.setString(5, garantedet.getNomGarante() );
+        
+                        psdet.addBatch();
+
+                        if(++countdet % batchSize == 0) {
+                            psdet.executeBatch();
+                        }
+                    }
+                    }
+           
+                    if (filerow.length() >= 235) {
+                    tipodocgarante = filerow.substring(193, 194).trim();
+                    docidgarante = filerow.substring(194, 205).trim();
+                    nombregarante = filerow.substring(205, 235).trim();
+                    if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ) {
+                        garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
+     
+                        psdet.setString(1, garantedet.getCodEmpleado() );
+                        psdet.setString(2, garantedet.getNumOperacion() );
+                        psdet.setString(3, garantedet.getTipoDocGarante() );
+                        psdet.setString(4, garantedet.getDocIdGarante() );
+                        psdet.setString(5, garantedet.getNomGarante() );
+        
+                        psdet.addBatch();
+
+                        if(++countdet % batchSize == 0) {
+                            psdet.executeBatch();
+                        }
+                    }
+                    }
+          
                 }
-                }  
-      
-           }
 
-           ps.executeBatch();
-           ps.close();
+                ps.executeBatch();
+                logger.info("Rows added to GARANTESTEMP : " + count);
 
+                psdet.executeBatch();
+                logger.info("Rows added to GARANTESDETALLETEMP : " + countdet);
 
-           logger.info("Rows added to GARANTESTEMP : " + count);
-
-           psdet.executeBatch();
-           psdet.close();
-
-
-           logger.info("Rows added to GARANTESDETALLETEMP : " + countdet);
-
-           logger.trace("**** Closed JDBC PreparedStatement");
+                logger.trace("**** Closed JDBC PreparedStatement");
+            }
 
         } catch (final IOException e) {
             ok = false;
@@ -964,49 +955,48 @@ public class CoopeCargaFiles {
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
             " ?, ?, ?)";
  
-            PreparedStatement ps = con.prepareStatement(sql);
-            int count = 0;
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                int count = 0;
 
-            while ((filerow = readRecord()) != null) {
+                while ((filerow = readRecord()) != null) {
 
-                logger.trace(filerow);
+                    logger.trace(filerow);
 
-                CoopeGarantizados garantizado = new CoopeGarantizados(filerow);
+                    CoopeGarantizados garantizado = new CoopeGarantizados(filerow);
 
-                ps.setString(1, garantizado.getTipoDoc() );
-                ps.setString(2, garantizado.getCodEmpleado() );
-                ps.setString(3, garantizado.getNomSocio() );
-                ps.setString(4, garantizado.getTipoDocIdGarantizado() );
-                ps.setString(5, garantizado.getDocIdGarantizado() );
-                ps.setString(6, garantizado.getNomSocioGarantizado() );
-                ps.setString(7, garantizado.getIdMovim() );
-                ps.setString(8, garantizado.getNomProducto() );
-                ps.setString(9, garantizado.getNumOperacion() );
+                    ps.setString(1, garantizado.getTipoDoc() );
+                    ps.setString(2, garantizado.getCodEmpleado() );
+                    ps.setString(3, garantizado.getNomSocio() );
+                    ps.setString(4, garantizado.getTipoDocIdGarantizado() );
+                    ps.setString(5, garantizado.getDocIdGarantizado() );
+                    ps.setString(6, garantizado.getNomSocioGarantizado() );
+                    ps.setString(7, garantizado.getIdMovim() );
+                    ps.setString(8, garantizado.getNomProducto() );
+                    ps.setString(9, garantizado.getNumOperacion() );
 
-                ps.setNull(10, Types.DATE);
-                tmpld = garantizado.getFecPrestamo();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(10, java.sql.Date.valueOf(tmpld));
+                    ps.setNull(10, Types.DATE);
+                    tmpld = garantizado.getFecPrestamo();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(10, java.sql.Date.valueOf(tmpld));
 
-                ps.setString(11, garantizado.getMoneda() );
-                ps.setDouble(12, garantizado.getMonto() );
-                ps.setDouble(13, garantizado.getSaldo() );
+                    ps.setString(11, garantizado.getMoneda() );
+                    ps.setDouble(12, garantizado.getMonto() );
+                    ps.setDouble(13, garantizado.getSaldo() );
 
-                ps.addBatch();
+                    ps.addBatch();
 
-                if(++count % batchSize == 0) {
-                    ps.executeBatch();
+                    if(++count % batchSize == 0) {
+                        ps.executeBatch();
+                    }
+               
                 }
-           
+
+                ps.executeBatch();
+
+                logger.info("Rows added to GARANTIZADOSTEMP : " + count);
+
+                logger.trace("**** Closed JDBC PreparedStatement");
             }
-
-            ps.executeBatch();
-            ps.close();
-
-
-            logger.info("Rows added to GARANTIZADOSTEMP : " + count);
-
-            logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
             ok = false;
@@ -1049,52 +1039,51 @@ public class CoopeCargaFiles {
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
             " ?, ?, ?, ?, ?, ? )";
  
-            PreparedStatement ps = con.prepareStatement(sql);
-            int count = 0;
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                int count = 0;
 
-            while ((filerow = readRecord()) != null) {
+                while ((filerow = readRecord()) != null) {
 
-                logger.trace(filerow);
+                    logger.trace(filerow);
 
-                CoopeFRA fra = new CoopeFRA(filerow);
+                    CoopeFRA fra = new CoopeFRA(filerow);
 
-                ps.setString(1, fra.getTipoDoc() );
-                ps.setString(2, fra.getCodEmpleado() );
-                ps.setString(3, fra.getNomSocio() );
-                ps.setString(4, fra.getPlaca() );
-                ps.setString(5, fra.getPropietario() );
+                    ps.setString(1, fra.getTipoDoc() );
+                    ps.setString(2, fra.getCodEmpleado() );
+                    ps.setString(3, fra.getNomSocio() );
+                    ps.setString(4, fra.getPlaca() );
+                    ps.setString(5, fra.getPropietario() );
 
-                ps.setNull(6, Types.DATE);
-                tmpld = fra.getFecInscripcion();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(6, java.sql.Date.valueOf(tmpld));
+                    ps.setNull(6, Types.DATE);
+                    tmpld = fra.getFecInscripcion();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(6, java.sql.Date.valueOf(tmpld));
 
-                ps.setString(7, fra.getModelo() );
-                ps.setString(8, fra.getMarca() );
-                ps.setString(9, fra.getClase() );
-                ps.setString(10, fra.getColor() );
-                ps.setShort(11, fra.getAnnoFabricacion() );
-                ps.setString(12, fra.getSerie() );
-                ps.setString(13, fra.getMotor() );
-                ps.setString(14, fra.getTarjeta() );
-                ps.setDouble(15, fra.getValor() );
-                ps.setDouble(16, fra.getAccesorios() );
+                    ps.setString(7, fra.getModelo() );
+                    ps.setString(8, fra.getMarca() );
+                    ps.setString(9, fra.getClase() );
+                    ps.setString(10, fra.getColor() );
+                    ps.setShort(11, fra.getAnnoFabricacion() );
+                    ps.setString(12, fra.getSerie() );
+                    ps.setString(13, fra.getMotor() );
+                    ps.setString(14, fra.getTarjeta() );
+                    ps.setDouble(15, fra.getValor() );
+                    ps.setDouble(16, fra.getAccesorios() );
 
-                ps.addBatch();
+                    ps.addBatch();
 
-                if(++count % batchSize == 0) {
-                    ps.executeBatch();
+                    if(++count % batchSize == 0) {
+                        ps.executeBatch();
+                    }
+
                 }
 
+                ps.executeBatch();
+
+                logger.info("Rows added to FRATEMP : " + count);
+                
+                logger.trace("**** Closed JDBC PreparedStatement");
             }
-
-            ps.executeBatch();
-            ps.close();
-
-
-            logger.info("Rows added to FRATEMP : " + count);
-            
-            logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
             ok = false;
@@ -1137,50 +1126,49 @@ public class CoopeCargaFiles {
             " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, " +
             " ?, ?, ?, ?)";
  
-            PreparedStatement ps = con.prepareStatement(sql);
-            int count = 0;
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                int count = 0;
 
-            while ((filerow = readRecord()) != null) {
+                while ((filerow = readRecord()) != null) {
 
-                logger.trace(filerow);
+                    logger.trace(filerow);
 
-                CoopeSiniestros siniestro = new CoopeSiniestros(filerow);
+                    CoopeSiniestros siniestro = new CoopeSiniestros(filerow);
 
-                ps.setString(1, siniestro.getTipoDoc() );
-                ps.setString(2, siniestro.getCodEmpleado() );
-                ps.setString(3, siniestro.getPlaca() );
+                    ps.setString(1, siniestro.getTipoDoc() );
+                    ps.setString(2, siniestro.getCodEmpleado() );
+                    ps.setString(3, siniestro.getPlaca() );
 
-                ps.setNull(4, Types.DATE);
-                tmpld = siniestro.getFecSiniestro();
-                if (!ObjectUtils.isEmpty(tmpld))
-                    ps.setDate(4, java.sql.Date.valueOf(tmpld));
+                    ps.setNull(4, Types.DATE);
+                    tmpld = siniestro.getFecSiniestro();
+                    if (!ObjectUtils.isEmpty(tmpld))
+                        ps.setDate(4, java.sql.Date.valueOf(tmpld));
 
-                ps.setString(5, siniestro.getCodigo() );
-                ps.setString(6, siniestro.getDescripcion() );
-                ps.setString(7, siniestro.getNumero() );
-                ps.setString(8, siniestro.getEstado() );
-                ps.setString(9, siniestro.getLugar() );
-                ps.setString(10, siniestro.getFranquicia() );
-                ps.setString(11, siniestro.getComisaria() );
-                ps.setString(12, siniestro.getNumDenuncia() );
-                ps.setDouble(13, siniestro.getImporte() );
-                ps.setString(14, siniestro.getNumConformidad() );
+                    ps.setString(5, siniestro.getCodigo() );
+                    ps.setString(6, siniestro.getDescripcion() );
+                    ps.setString(7, siniestro.getNumero() );
+                    ps.setString(8, siniestro.getEstado() );
+                    ps.setString(9, siniestro.getLugar() );
+                    ps.setString(10, siniestro.getFranquicia() );
+                    ps.setString(11, siniestro.getComisaria() );
+                    ps.setString(12, siniestro.getNumDenuncia() );
+                    ps.setDouble(13, siniestro.getImporte() );
+                    ps.setString(14, siniestro.getNumConformidad() );
 
-                ps.addBatch();
+                    ps.addBatch();
 
-                if(++count % batchSize == 0) {
-                    ps.executeBatch();
+                    if(++count % batchSize == 0) {
+                        ps.executeBatch();
+                    }
+
                 }
 
+                ps.executeBatch();
+
+                logger.info("Rows added to SINIESTROSTEMP : " + count);
+
+                logger.trace("**** Closed JDBC PreparedStatement");
             }
-
-            ps.executeBatch();
-            ps.close();
-
-
-            logger.info("Rows added to SINIESTROSTEMP : " + count);
-
-            logger.trace("**** Closed JDBC PreparedStatement");
 
         } catch (final IOException e) {
             ok = false;
@@ -1220,43 +1208,42 @@ public class CoopeCargaFiles {
                 "Protagonista3, Protagonista4, Director, Idioma, Pais, Anno ) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )";
 
-            PreparedStatement ps = con.prepareStatement(sql);
-            int count = 0;
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                int count = 0;
 
-            while ((filerow = readRecord()) != null) {
+                while ((filerow = readRecord()) != null) {
 
-                logger.trace(filerow);
+                    logger.trace(filerow);
 
-                CoopeVideos video = new CoopeVideos(filerow);
+                    CoopeVideos video = new CoopeVideos(filerow);
 
-                ps.setString(1, video.getCodGenVid());
-                ps.setString(2, video.getGenVideo());
-                ps.setString(3, video.getCodVideo());
-                ps.setString(4, video.getTitCastVideo());
-                ps.setString(5, video.getTitNavVideo());
-                ps.setString(6, video.getProtagVideo1());
-                ps.setString(7, video.getProtagVideo2());
-                ps.setString(8, video.getProtagVideo3());
-                ps.setString(9, video.getProtagVideo4());
-                ps.setString(10, video.getDirecVideo());
-                ps.setString(11, video.getIdiomaVideo());
-                ps.setString(12, video.getPaisVideo());
-                ps.setInt(13, video.getAnnoVideo());
-                ps.addBatch();
+                    ps.setString(1, video.getCodGenVid());
+                    ps.setString(2, video.getGenVideo());
+                    ps.setString(3, video.getCodVideo());
+                    ps.setString(4, video.getTitCastVideo());
+                    ps.setString(5, video.getTitNavVideo());
+                    ps.setString(6, video.getProtagVideo1());
+                    ps.setString(7, video.getProtagVideo2());
+                    ps.setString(8, video.getProtagVideo3());
+                    ps.setString(9, video.getProtagVideo4());
+                    ps.setString(10, video.getDirecVideo());
+                    ps.setString(11, video.getIdiomaVideo());
+                    ps.setString(12, video.getPaisVideo());
+                    ps.setInt(13, video.getAnnoVideo());
+                    ps.addBatch();
 
-                if(++count % batchSize == 0) {
-                        ps.executeBatch();
-                }
+                    if(++count % batchSize == 0) {
+                            ps.executeBatch();
+                    }
 
-            }  //while
+                }  //while
 
-            ps.executeBatch();
-            ps.close();
+                ps.executeBatch();
 
+                logger.info("Rows added to VIDEOSTEMP : " + count);
 
-            logger.info("Rows added to VIDEOSTEMP : " + count);
-
-            logger.trace("**** Closed JDBC PreparedStatement");
+                logger.trace("**** Closed JDBC PreparedStatement");
+            }
 
         } catch (final IOException e) {
             ok = false;
@@ -1344,13 +1331,15 @@ public class CoopeCargaFiles {
 
         try {
             logger.debug("Cerrando file");
-            fileReader.close();
+            if (fileReader != null) {
+                fileReader.close();
+            }
             logger.info("file closed");
 
         } catch (IOException e) {
            logger.error(e);
             
-        } 
+        }
     }
 
     private boolean connectdb2() {
@@ -1463,12 +1452,12 @@ public class CoopeCargaFiles {
     private void closedb2Connection() {
 
         try {
-           
-              // Close the connection
-              logger.debug("Closing connection to db2");
-              con.close();
-              logger.info("**** Disconnected from db2 data source");
-                                 
+            if (con != null) {
+                // Close the connection
+                logger.debug("Closing connection to db2");
+                con.close();
+                logger.info("**** Disconnected from db2 data source");
+            }
         }  catch(SQLException ex)  {
                logger.error("SQLException information");
                while(ex!=null) {

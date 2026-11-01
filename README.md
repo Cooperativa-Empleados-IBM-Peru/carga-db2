@@ -18,7 +18,7 @@ The program reads its configuration from `./resources` (relative to the current 
 that contains the `resources/` folder (`coopeibm.properties`, `log4j2.properties`):
 
 ```bash
-java -jar target/coopeibm-cargadatadb2-1.7.0-jar-with-dependencies.jar <parameter>
+java -jar target/coopeibm-cargadatadb2-1.8.0-jar-with-dependencies.jar <parameter>
 ```
 
 ## Parameters
