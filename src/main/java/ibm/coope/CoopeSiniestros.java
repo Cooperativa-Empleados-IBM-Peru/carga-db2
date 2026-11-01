@@ -1,14 +1,11 @@
 package ibm.coope;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import java.time.LocalDate;
 
 import lombok.Data;
 
 @Data
 public class CoopeSiniestros {
-
-	private AtomicInteger cont;
 
 	private String TipoDoc;
 	private String CodEmpleado;

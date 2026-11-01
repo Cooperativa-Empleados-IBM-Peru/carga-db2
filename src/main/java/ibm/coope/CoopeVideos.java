@@ -5,8 +5,6 @@ import lombok.Data;
 @Data
 public class CoopeVideos  {
 
-	private int i = 0;
-		
 	private String CodGenVid;
 	private String GenVideo;
 	private String CodVideo;

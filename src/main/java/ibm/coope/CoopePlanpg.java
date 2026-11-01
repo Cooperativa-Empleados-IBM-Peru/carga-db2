@@ -1,6 +1,5 @@
 package ibm.coope;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import lombok.Data;
@@ -18,15 +17,10 @@ public class CoopePlanpg {
 	private Double Interes;
 	private Double InteresMoratorio;
 
-	
 	CoopePlanpg(String arg1) {
 	
 		String tmp;
 
-		BigDecimal tmonto;
-		BigDecimal tinteres;
-		BigDecimal tinteresmoratorio;
-	
 		this.NumOpera = arg1.substring(0, 9).trim();
 			
 		this.IdMov = arg1.substring(9, 13).trim();
@@ -40,14 +34,9 @@ public class CoopePlanpg {
 		if ( !tmp.equals("00000000"))
 			this.FecPago = CoopeUtils.convertTolocalDate(tmp, "yyyyMMdd");
 		
-		tmonto = new BigDecimal(Double.parseDouble( arg1.substring(45, 46).trim() + arg1.substring(32, 45).trim() ) /100);
-		Monto = tmonto.doubleValue();
-		
-		tinteres = new BigDecimal(Double.parseDouble( arg1.substring(59, 60).trim() + arg1.substring(46, 59).trim() ) /100);
-		Interes = tinteres.doubleValue();
-	
-		tinteresmoratorio = new BigDecimal(Double.parseDouble( arg1.substring(73, 74).trim() + arg1.substring(60, 73).trim() ) /100);
-		InteresMoratorio = tinteresmoratorio.doubleValue();
+		this.Monto = Double.parseDouble( arg1.substring(45, 46).trim() + arg1.substring(32, 45).trim() ) /100;
+		this.Interes = Double.parseDouble( arg1.substring(59, 60).trim() + arg1.substring(46, 59).trim() ) /100;
+		this.InteresMoratorio = Double.parseDouble( arg1.substring(73, 74).trim() + arg1.substring(60, 73).trim() ) /100;
 		
 	}
 		

@@ -796,110 +796,27 @@ public class CoopeCargaFiles {
                         ps.executeBatch();
                     }
         
-                    //Detalles
-                    if (filerow.length() >= 67) {
-                    tipodocgarante = filerow.substring(25, 26).trim();
-                    docidgarante = filerow.substring(26, 37).trim();
-                    nombregarante = filerow.substring(37, 67).trim();
-                    if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ) {
-                        garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
-        
-                        psdet.setString(1, garantedet.getCodEmpleado() );
-                        psdet.setString(2, garantedet.getNumOperacion() );
-                        psdet.setString(3, garantedet.getTipoDocGarante() );
-                        psdet.setString(4, garantedet.getDocIdGarante() );
-                        psdet.setString(5, garantedet.getNomGarante() );
-        
-                        psdet.addBatch();
+                    // Detalles (up to 5 guarantors: offsets 25, 67, 109, 151, 193 with length 42 each)
+                    for (int offset = 25; offset + 42 <= filerow.length(); offset += 42) {
+                        tipodocgarante = filerow.substring(offset, offset + 1).trim();
+                        docidgarante = filerow.substring(offset + 1, offset + 12).trim();
+                        nombregarante = filerow.substring(offset + 12, offset + 42).trim();
+                        if (!tipodocgarante.isEmpty() && !docidgarante.isEmpty()) {
+                            garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(),
+                                    tipodocgarante, docidgarante, nombregarante);
 
-                        if(++countdet % batchSize == 0) {
-                            psdet.executeBatch();
+                            psdet.setString(1, garantedet.getCodEmpleado());
+                            psdet.setString(2, garantedet.getNumOperacion());
+                            psdet.setString(3, garantedet.getTipoDocGarante());
+                            psdet.setString(4, garantedet.getDocIdGarante());
+                            psdet.setString(5, garantedet.getNomGarante());
+
+                            psdet.addBatch();
+
+                            if (++countdet % batchSize == 0) {
+                                psdet.executeBatch();
+                            }
                         }
-                    }
-                    }
-
-                    if (filerow.length() >= 109) {
-                    tipodocgarante = filerow.substring(67, 68).trim();
-                    docidgarante = filerow.substring(68, 79).trim();
-                    nombregarante = filerow.substring(79, 109).trim();
-                    if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ) {
-                        garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
-
-                        psdet.setString(1, garantedet.getCodEmpleado() );
-                        psdet.setString(2, garantedet.getNumOperacion() );
-                        psdet.setString(3, garantedet.getTipoDocGarante() );
-                        psdet.setString(4, garantedet.getDocIdGarante() );
-                        psdet.setString(5, garantedet.getNomGarante() );
-        
-                        psdet.addBatch();
-
-                        if(++countdet % batchSize == 0) {
-                            psdet.executeBatch();
-                        }
-                    }
-                    }
-
-                    if (filerow.length() >= 151) {
-                    tipodocgarante = filerow.substring(109, 110).trim();
-                    docidgarante = filerow.substring(110, 121).trim();
-                    nombregarante = filerow.substring(121, 151).trim();
-                    if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ) {
-                        garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
-     
-                        psdet.setString(1, garantedet.getCodEmpleado() );
-                        psdet.setString(2, garantedet.getNumOperacion() );
-                        psdet.setString(3, garantedet.getTipoDocGarante() );
-                        psdet.setString(4, garantedet.getDocIdGarante() );
-                        psdet.setString(5, garantedet.getNomGarante() );
-        
-                        psdet.addBatch();
-
-                        if(++countdet % batchSize == 0) {
-                            psdet.executeBatch();
-                        }
-                    }
-                    }
-                        
-                    if (filerow.length() >=193) {
-                    tipodocgarante = filerow.substring(151, 152).trim();
-                    docidgarante = filerow.substring(152, 163).trim();
-                    nombregarante = filerow.substring(163, 193).trim();
-                    if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ){
-                        garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
-     
-                        psdet.setString(1, garantedet.getCodEmpleado() );
-                        psdet.setString(2, garantedet.getNumOperacion() );
-                        psdet.setString(3, garantedet.getTipoDocGarante() );
-                        psdet.setString(4, garantedet.getDocIdGarante() );
-                        psdet.setString(5, garantedet.getNomGarante() );
-        
-                        psdet.addBatch();
-
-                        if(++countdet % batchSize == 0) {
-                            psdet.executeBatch();
-                        }
-                    }
-                    }
-           
-                    if (filerow.length() >= 235) {
-                    tipodocgarante = filerow.substring(193, 194).trim();
-                    docidgarante = filerow.substring(194, 205).trim();
-                    nombregarante = filerow.substring(205, 235).trim();
-                    if (tipodocgarante.length() > 0 && docidgarante.length() > 0 ) {
-                        garantedet = new CoopeGarantesDetalle(garante.getCodEmpleado(), garante.getNumOperacion(), tipodocgarante, docidgarante, nombregarante);
-     
-                        psdet.setString(1, garantedet.getCodEmpleado() );
-                        psdet.setString(2, garantedet.getNumOperacion() );
-                        psdet.setString(3, garantedet.getTipoDocGarante() );
-                        psdet.setString(4, garantedet.getDocIdGarante() );
-                        psdet.setString(5, garantedet.getNomGarante() );
-        
-                        psdet.addBatch();
-
-                        if(++countdet % batchSize == 0) {
-                            psdet.executeBatch();
-                        }
-                    }
                     }
           
                 }

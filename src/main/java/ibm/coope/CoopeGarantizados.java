@@ -19,8 +19,6 @@ public class CoopeGarantizados {
 	private String Moneda;
 	private Double Monto;
 	private Double Saldo;
-
-	private String email;
 	
 	CoopeGarantizados(String arg1) {
 

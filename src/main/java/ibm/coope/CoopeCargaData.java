@@ -116,29 +116,17 @@ public class CoopeCargaData {
                     sftpcoope.getFiles();
                     break;
 
-            case "fullcargadata" :
-                    if (!loadAndValidateSettings(true, true)) {
-                        return false;
-                    }
-                    CoopeSftp fullcargadatasftp = new CoopeSftp(prop);
-                    fullcargadatasftp.getFiles();
-
-                   CoopeCargaFiles fullcargadata = new CoopeCargaFiles(prop);
-                   fullcargadata.cargaData();
-
-                  break;
-
-            case "FULL" :
+            case "fullcargadata":
+            case "FULL":
                     if (!loadAndValidateSettings(true, true)) {
                         return false;
                     }
                     CoopeSftp fullsftp = new CoopeSftp(prop);
                     fullsftp.getFiles();
 
-                   CoopeCargaFiles fulldata = new CoopeCargaFiles(prop);
-                   fulldata.cargaData();
-
-                  break;
+                    CoopeCargaFiles fulldata = new CoopeCargaFiles(prop);
+                    fulldata.cargaData();
+                    break;
 
             case "help" :  
             default: 

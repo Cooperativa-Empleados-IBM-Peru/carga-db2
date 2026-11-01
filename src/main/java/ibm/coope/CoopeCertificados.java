@@ -21,7 +21,6 @@ public class CoopeCertificados {
 	private Double InteresP;
 	private Double InteresC;
 	private Double Interes;
-	private Double InteresG;
 	
 	private LocalDate fecEmision;
 	private LocalDate fecVencimiento;

@@ -51,24 +51,6 @@ public class CoopePrusal {
 	private LocalDate fecMovPEsp1;
 	private LocalDate fecMovPEsp2;
 
-	private String email;
-	private boolean actfecMovDisAho;
-	private boolean actfecMovBloAho;
-	private boolean actfecMovAporta;
-	private boolean actfecMovMiscel;
-	private boolean actfecMovCert1;
-	private boolean actfecMovCert2;
-	private boolean actfecMovPSFirma;
-	private boolean actfecMovPCPlazo;
-	private boolean actfecMovPMPlazo;
-	private boolean actfecMovPLPlazo;
-	private boolean actfecMovPHipot;
-	private boolean actfecMovPConsum;
-	private boolean actfecMovPAuto;
-	private boolean actfecMovPPS1;
-	private boolean actfecMovPEsp1;
-	private boolean actfecMovPEsp2;
-
 	CoopePrusal(String arg1) {
 
 		// Header fields
